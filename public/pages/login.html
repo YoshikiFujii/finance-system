@@ -1,0 +1,23 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"/>
+<title>ログイン</title>
+<link rel="stylesheet" href="/assets/app.css"/>
+<body>
+<h1>ログイン</h1>
+<label>ページ: <select id="role">
+<option value="OFFICER">提出ページ（役員）</option>
+<option value="FINANCE">財務ページ</option>
+<option value="ADMIN">管理者ページ</option>
+</select></label>
+<br/>
+<input id="pw" type="password" placeholder="パスワード"/>
+<button id="go">ログイン</button>
+<script>
+document.getElementById('go').onclick = async () => {
+const role = document.getElementById('role').value;
+const password = document.getElementById('pw').value;
+const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password})});
+const j = await r.json(); if(!j.ok){ alert(j.message); return; }
+location.href = role==='OFFICER'? '/pages/officer.html' : role==='FINANCE'? '/pages/finance.html' : '/pages/admin.html';
+};
+</script>
+</body></html>

@@ -1,0 +1,7 @@
+/* 簡易スタイル */
+.badge{padding:2px 6px;border-radius:6px;font-size:12px}
+.badge.NEW{background:#888;color:#fff}
+.badge.ACCEPTED{background:#1976d2;color:#fff}
+.badge.CASH_GIVEN,.badge.CASH_WITHDRAWN,.badge.TRANSFERRED,.badge.PAID,.badge.COLLECTED{background:#ff9800;color:#fff}
+.badge.RECEIPT_DONE{background:#2e7d32;color:#fff}
+.badge.REJECTED{background:#c62828;color:#fff}

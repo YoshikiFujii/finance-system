@@ -1,0 +1,68 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"/>
+<title>財務ページ</title>
+<link rel="stylesheet" href="/assets/app.css"/>
+<body>
+<h1>財務一覧</h1>
+<input id="q" placeholder="検索（提出者/概要）"/>
+<button id="reload">更新</button>
+<table border="1" cellpadding="6">
+<thead><tr>
+<th>受付番号</th><th>提出日時</th><th>提出者</th><th>部署</th><th>概要</th>
+<th>ネット</th><th>状態</th><th>渡し額</th><th>操作</th>
+</tr></thead>
+<tbody id="list"></tbody>
+</table>
+<div id="detail"></div>
+<script>
+async function load(){
+const q=document.getElementById('q').value;
+const r=await fetch('/api/requests?q='+encodeURIComponent(q));
+const j=await r.json();
+const tb=document.getElementById('list'); tb.innerHTML='';
+if(!j.ok){ alert(j.message); return; }
+for(const x of j.data){
+const tr=document.createElement('tr');
+tr.innerHTML=`<td>${x.request_no}</td><td>${x.submitted_at}</td><td>${x.member_name}</td><td>${x.dept_name}</td>
+<td>${x.summary}</td><td>${x.expects_network}</td>
+<td><span class="badge ${x.state}">${x.state}</span></td>
+<td>${x.cash_given??''}</td>
+<td>
+<button data-id="${x.id}" class="accept">受理</button>
+<button data-id="${x.id}" class="reject">却下</button>
+<button data-id="${x.id}" class="state">状態→</button>
+<button data-id="${x.id}" class="receipt">レシート</button>
+<button data-id="${x.id}" class="recalc">検算</button>
+</td>`;
+tb.appendChild(tr);
+}
+}
+load();
+
+
+document.getElementById('reload').onclick=load;
+
+
+document.addEventListener('click', async (e)=>{
+const id = e.target?.dataset?.id; if(!id) return;
+if(e.target.className==='accept'){
+const r=await fetch(`/api/requests/${id}/accept`,{method:'POST'}); const j=await r.json(); if(!j.ok) return alert(j.message); load();
+} else if(e.target.className==='reject'){
+const reason=prompt('却下理由'); if(!reason) return;
+const r=await fetch(`/api/requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
+const j=await r.json(); if(!j.ok) return alert(j.message); load();
+} else if(e.target.className==='state'){
+const next=prompt('次状態を入力 (CASH_GIVEN/COLLECTED/RECEIPT_DONE/CASH_WITHDRAWN/PAID/TRANSFERRED)'); if(!next) return;
+const r=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:next})});
+const j=await r.json(); if(!j.ok) return alert(j.message); load();
+} else if(e.target.className==='receipt'){
+const total=prompt('レシート合計'); if(!total) return;
+const change=prompt('返却額(お釣り/未使用) 0可');
+const f=prompt('ファイルパス（ブラウザではinput要）→ このデモではスキップ。実装時はフォームでmultipart送信してください');
+alert('UI簡略化のため、receiptアップロードはフォームで行ってください');
+} else if(e.target.className==='recalc'){
+const r=await fetch(`/api/requests/${id}/recalc`); const j=await r.json(); if(!j.ok) return alert(j.message);
+alert(`Σレシート=${j.data.sum_total} / Σ返却=${j.data.sum_change} / 差額=${j.data.diff}`);
+}
+});
+</script>
+</body></html>

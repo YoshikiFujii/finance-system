@@ -1,0 +1,30 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"/>
+<title>管理者ページ</title>
+<body>
+<h1>管理者</h1>
+<section>
+<h2>部署マスタ</h2>
+<div id="deps"></div>
+<input id="dep_name" placeholder="部署名"/> <button id="dep_add">追加</button>
+</section>
+<section>
+<h2>役員マスタ</h2>
+<div id="members"></div>
+</section>
+<script>
+async function load(){
+const d = await (await fetch('/api/masters/departments')).json();
+const m = await (await fetch('/api/masters/members')).json();
+document.getElementById('deps').innerHTML = d.ok? d.data.map(x=>`${x.id}: ${x.name}`).join('<br/>'):'error';
+document.getElementById('members').innerHTML = m.ok? m.data.map(x=>`${x.id}: ${x.name} (${x.department_name})`).join('<br/>'):'error';
+}
+load();
+
+
+document.getElementById('dep_add').onclick = async ()=>{
+const name=document.getElementById('dep_name').value.trim(); if(!name) return;
+const r=await fetch('/api/masters/department',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+const j=await r.json(); if(!j.ok) return alert(j.message); load();
+};
+</script>
+</body></html>
