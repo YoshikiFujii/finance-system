@@ -1,8 +1,8 @@
 <!doctype html><html lang="ja"><meta charset="utf-8"/>
-<title>財務ページ</title>
-<link rel="stylesheet" href="/assets/app.css"/>
+<title>Lotus - 財務ページ</title>
+<link rel="stylesheet" href="../assets/app.css?v=1"/>
 <body>
-<h1>財務一覧</h1>
+<h1>Lotus - 財務一覧</h1>
 <input id="q" placeholder="検索（提出者/概要）"/>
 <button id="reload">更新</button>
 <table border="1" cellpadding="6">
@@ -15,37 +15,27 @@
 <div id="detail"></div>
 
 <!-- レシートアップロードモーダル -->
-<div id="receiptUploadModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; min-width:400px;">
+<div id="receiptUploadModal" class="modal-overlay">
+<div class="modal-content" style="min-width:400px;">
 <h3>レシートアップロード</h3>
 <form id="receiptUploadForm" enctype="multipart/form-data">
 <input type="hidden" id="uploadRequestId" />
-<div style="margin:10px 0;">
-<label>ファイル:</label><br/>
+<label>ファイル:</label>
 <input type="file" id="receiptFile" accept="image/*,.pdf" required />
-</div>
-<div style="margin:10px 0;">
-<label>合計金額:</label><br/>
+<label>合計金額:</label>
 <input type="number" id="receiptTotal" step="0.01" min="0" required />
-</div>
-<div style="margin:10px 0;">
-<label>レシート種別:</label><br/>
+<label>レシート種別:</label>
 <select id="receiptKind">
 <option value="RECEIPT">レシート</option>
 <option value="INVOICE">請求書</option>
 <option value="TRANSFER_SLIP">振込票</option>
 <option value="PAYMENT_SLIP">支払票</option>
 </select>
-</div>
-<div style="margin:10px 0;">
-<label>撮影日時:</label><br/>
+<label>撮影日時:</label>
 <input type="datetime-local" id="receiptTakenAt" />
-</div>
-<div style="margin:10px 0;">
-<label>メモ:</label><br/>
+<label>メモ:</label>
 <input type="text" id="receiptMemo" placeholder="任意" />
-</div>
-<div style="text-align:right; margin-top:20px;">
+<div class="modal-buttons">
 <button type="button" onclick="closeReceiptUploadModal()">キャンセル</button>
 <button type="submit">アップロード</button>
 </div>
@@ -54,26 +44,24 @@
 </div>
 
 <!-- レシート一覧モーダル -->
-<div id="receiptListModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; min-width:600px; max-height:80vh; overflow-y:auto;">
+<div id="receiptListModal" class="modal-overlay">
+<div class="modal-content" style="min-width:600px;">
 <h3>レシート一覧</h3>
 <div id="receiptList"></div>
-<div style="text-align:right; margin-top:20px;">
+<div class="modal-buttons">
 <button onclick="closeReceiptListModal()">閉じる</button>
 </div>
 </div>
 </div>
 
 <!-- レシート処理モーダル -->
-<div id="receiptProcessModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; min-width:400px;">
+<div id="receiptProcessModal" class="modal-overlay">
+<div class="modal-content" style="min-width:400px;">
 <h3>レシート処理</h3>
 <div id="receiptProcessInfo"></div>
-<div style="margin:10px 0;">
-<label>お釣りの額:</label><br/>
+<label>お釣りの額:</label>
 <input type="number" id="changeAmount" step="0.01" min="0" value="0" />
-</div>
-<div style="text-align:right; margin-top:20px;">
+<div class="modal-buttons">
 <button type="button" onclick="closeReceiptProcessModal()">キャンセル</button>
 <button type="button" onclick="processReceipt()">処理完了</button>
 </div>
@@ -154,12 +142,15 @@ loadProcessedAmount(x.id);
 
 function getStateText(state) {
 const stateMap = {
-'NEW': '未受理',
-'ACCEPTED': '受理',
-'CASH_GIVEN': '渡し済み',
-'COLLECTED': '回収済み',
-'RECEIPT_DONE': '処理完了',
-'REJECTED': '却下'
+'NEW': '📋 未受理',
+'ACCEPTED': '✅ 受理済み',
+'CASH_GIVEN': '💰 現金渡し済み',
+'COLLECTED': '📄 回収済み',
+'RECEIPT_DONE': '🎉 処理完了',
+'REJECTED': '❌ 却下',
+'CASH_WITHDRAWN': '🏧 下ろし済み',
+'PAID': '💳 支払い済み',
+'TRANSFERRED': '🏦 振込済み'
 };
 return stateMap[state] || state;
 }
@@ -229,11 +220,11 @@ showReceiptListModal(id);
 function showReceiptUploadModal(requestId) {
 document.getElementById('uploadRequestId').value = requestId;
 document.getElementById('receiptTakenAt').value = new Date().toISOString().slice(0, 16);
-document.getElementById('receiptUploadModal').style.display = 'block';
+document.getElementById('receiptUploadModal').classList.add('show');
 }
 
 function closeReceiptUploadModal() {
-document.getElementById('receiptUploadModal').style.display = 'none';
+document.getElementById('receiptUploadModal').classList.remove('show');
 document.getElementById('receiptUploadForm').reset();
 }
 
@@ -268,11 +259,11 @@ ${receipt.memo ? '<br/>メモ: ' + receipt.memo : ''}
 `).join('');
 }
 
-document.getElementById('receiptListModal').style.display = 'block';
+document.getElementById('receiptListModal').classList.add('show');
 }
 
 function closeReceiptListModal() {
-document.getElementById('receiptListModal').style.display = 'none';
+document.getElementById('receiptListModal').classList.remove('show');
 }
 
 // レシート処理モーダル関連
@@ -314,7 +305,7 @@ document.getElementById('receiptProcessInfo').innerHTML = `
 `;
 
 document.getElementById('changeAmount').value = Math.max(0, cashGiven - processedAmount);
-document.getElementById('receiptProcessModal').style.display = 'block';
+document.getElementById('receiptProcessModal').classList.add('show');
 } catch(e) {
 console.error('Failed to show receipt process modal:', e);
 alert('エラーが発生しました');
@@ -322,7 +313,7 @@ alert('エラーが発生しました');
 }
 
 function closeReceiptProcessModal() {
-document.getElementById('receiptProcessModal').style.display = 'none';
+document.getElementById('receiptProcessModal').classList.remove('show');
 currentProcessRequestId = null;
 }
 
