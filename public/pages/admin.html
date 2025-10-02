@@ -10,21 +10,112 @@
 <section>
 <h2>役員マスタ</h2>
 <div id="members"></div>
+<input id="member_name" placeholder="役員名"/> 
+<select id="member_department">
+<option value="">部署を選択</option>
+</select>
+<button id="member_add">追加</button>
+</section>
+<section>
+<h2>購入希望リスト</h2>
+<div id="requests"></div>
+<button id="reload_requests">更新</button>
 </section>
 <script>
 async function load(){
 const d = await (await fetch('/api/masters/departments')).json();
 const m = await (await fetch('/api/masters/members')).json();
-document.getElementById('deps').innerHTML = d.ok? d.data.map(x=>`${x.id}: ${x.name}`).join('<br/>'):'error';
-document.getElementById('members').innerHTML = m.ok? m.data.map(x=>`${x.id}: ${x.name} (${x.department_name})`).join('<br/>'):'error';
+document.getElementById('deps').innerHTML = d.ok? d.data.map(x=>`${x.id}: ${x.name} <button onclick="deleteDepartment(${x.id}, '${x.name}')">削除</button>`).join('<br/>'):'error';
+document.getElementById('members').innerHTML = m.ok? m.data.map(x=>`${x.id}: ${x.name} (${x.department_name}) <button onclick="deleteMember(${x.id}, '${x.name}')">削除</button>`).join('<br/>'):'error';
+
+// 部署選択肢を更新
+if(d.ok) {
+const depSelect = document.getElementById('member_department');
+depSelect.innerHTML = '<option value="">部署を選択</option>' + d.data.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+}
+}
+
+async function loadRequests(){
+const r = await (await fetch('/api/requests')).json();
+if(!r.ok) {
+document.getElementById('requests').innerHTML = 'error: ' + r.message;
+return;
+}
+document.getElementById('requests').innerHTML = r.data.length === 0 ? 'リクエストはありません' : 
+r.data.map(x=>`<div style="border:1px solid #ccc; margin:5px; padding:10px;">
+<strong>${x.request_no}</strong> - ${x.summary}<br/>
+提出者: ${x.member_name} (${x.dept_name})<br/>
+提出日: ${x.submitted_at}<br/>
+状態: ${x.state}<br/>
+<button onclick="deleteRequest(${x.id}, '${x.request_no}')">削除</button>
+</div>`).join('');
 }
 load();
+loadRequests();
 
 
 document.getElementById('dep_add').onclick = async ()=>{
 const name=document.getElementById('dep_name').value.trim(); if(!name) return;
 const r=await fetch('/api/masters/department',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-const j=await r.json(); if(!j.ok) return alert(j.message); load();
+const j=await r.json(); if(!j.ok) return alert(j.message); 
+document.getElementById('dep_name').value = '';
+load();
 };
+
+document.getElementById('member_add').onclick = async ()=>{
+const name = document.getElementById('member_name').value.trim();
+const departmentId = document.getElementById('member_department').value;
+if(!name || !departmentId) return alert('役員名と部署を選択してください');
+const r = await fetch('/api/masters/member', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({name, department_id: parseInt(departmentId)})
+});
+const j = await r.json();
+if(!j.ok) return alert(j.message);
+document.getElementById('member_name').value = '';
+document.getElementById('member_department').value = '';
+load();
+};
+
+document.getElementById('reload_requests').onclick = loadRequests;
+
+async function deleteDepartment(id, name) {
+if(!confirm(`部署「${name}」を削除しますか？\n\n注意: この部署に関連するメンバーやリクエストが存在する場合は削除できません。`)) return;
+const r = await fetch('/api/masters/department', {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({id})
+});
+const j = await r.json();
+if(!j.ok) return alert(j.message);
+alert('部署を削除しました');
+load();
+}
+
+async function deleteMember(id, name) {
+if(!confirm(`役員「${name}」を削除しますか？\n\n注意: この役員に関連するリクエストが存在する場合は削除できません。`)) return;
+const r = await fetch('/api/masters/member', {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({id})
+});
+const j = await r.json();
+if(!j.ok) return alert(j.message);
+alert('役員を削除しました');
+load();
+}
+
+async function deleteRequest(id, requestNo) {
+if(!confirm(`リクエスト「${requestNo}」を削除しますか？\n\n注意: このリクエストに関連するレシートやアイテムが存在する場合は削除できません。`)) return;
+const r = await fetch(`/api/requests/${id}`, {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'}
+});
+const j = await r.json();
+if(!j.ok) return alert(j.message);
+alert('リクエストを削除しました');
+loadRequests();
+}
 </script>
 </body></html>

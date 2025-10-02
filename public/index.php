@@ -24,6 +24,8 @@ if ($method==='GET' && $path==='/api/masters/departments') return MasterControll
 if ($method==='GET' && $path==='/api/masters/members') return MasterController::members_list();
 if ($method==='POST' && $path==='/api/masters/department') return MasterController::upsert_department();
 if ($method==='POST' && $path==='/api/masters/member') return MasterController::upsert_member();
+if ($method==='DELETE' && $path==='/api/masters/department') return MasterController::delete_department();
+if ($method==='DELETE' && $path==='/api/masters/member') return MasterController::delete_member();
 
 
 if ($method==='POST' && $path==='/api/requests') return RequestController::create();
@@ -34,6 +36,7 @@ if ($method==='POST' && preg_match('#^/api/requests/(\d+)/state$#',$path,$m)) re
 if ($method==='POST' && preg_match('#^/api/requests/(\d+)/cash$#',$path,$m)) return RequestController::set_cash((int)$m[1]);
 if ($method==='POST' && preg_match('#^/api/requests/(\d+)/receipt$#',$path,$m)) return RequestController::upload_receipt((int)$m[1]);
 if ($method==='GET' && preg_match('#^/api/requests/(\d+)/recalc$#',$path,$m)) return RequestController::recalc((int)$m[1]);
+if ($method==='DELETE' && preg_match('#^/api/requests/(\d+)$#',$path,$m)) return RequestController::delete((int)$m[1]);
 
 
 http_response_code(404); echo json_encode(['ok'=>false,'message'=>'not found']);

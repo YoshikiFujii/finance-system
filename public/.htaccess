@@ -1,5 +1,12 @@
-# Apache用。Nginxは location / { try_files $uri /index.php?$query_string; }
 RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]
+
+# API リクエストを index.php にリダイレクト
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^(.*)$ /index.php [QSA,L]
+
+# 静的ファイルはそのまま配信
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ - [L]
+
+# その他のリクエストも index.php にリダイレクト（SPA用）
+RewriteRule ^(.*)$ /index.php [QSA,L]

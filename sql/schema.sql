@@ -1,19 +1,24 @@
 CREATE TABLE IF NOT EXISTS departments (
-CREATE TABLE IF NOT EXISTS members (
-id INT AUTO_INCREMENT PRIMARY KEY,
+id BIGINT AUTO_INCREMENT PRIMARY KEY,
 name VARCHAR(100) NOT NULL,
-department_id INT NOT NULL,
-is_officer TINYINT(1) NOT NULL DEFAULT 1,
 is_active TINYINT(1) NOT NULL DEFAULT 1,
+created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS members (
+id BIGINT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(100) NOT NULL,
+department_id BIGINT NOT NULL,
+is_active TINYINT(1) NOT NULL DEFAULT 1,
+created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 
-
 CREATE TABLE IF NOT EXISTS requests (
 id BIGINT AUTO_INCREMENT PRIMARY KEY,
-request_no VARCHAR(30) UNIQUE,
-member_id INT NOT NULL,
-department_id INT NOT NULL,
+request_no VARCHAR(20) NOT NULL UNIQUE,
+member_id BIGINT NOT NULL,
+department_id BIGINT NOT NULL,
 submitted_at DATETIME NOT NULL,
 summary VARCHAR(255) NOT NULL,
 expects_network ENUM('NONE','CONVENIENCE','BANK_TRANSFER') NOT NULL DEFAULT 'NONE',
@@ -65,7 +70,7 @@ actor VARCHAR(50) NOT NULL,
 action VARCHAR(50) NOT NULL,
 detail TEXT,
 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-INDEX(req_actor_idx) (request_id, actor)
+INDEX req_actor_idx (request_id, actor)
 );
 
 
@@ -78,11 +83,10 @@ updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTA
 
 INSERT INTO departments(name) VALUES ('総務'),('財務'),('広報');
 INSERT INTO members(name, department_id) VALUES ('山田太郎',1),('佐藤花子',2),('鈴木一郎',3);
-
-
 # 初期パスワード（例）: 役員/officer123, 財務/finance123, 管理/admin123
 # 生成例: PHPのpassword_hashで生成し、以下に貼る
 INSERT INTO passwords(role, pass_hash) VALUES
-('OFFICER', '$2y$10$PLACEHASHOFFICER'),
-('FINANCE', '$2y$10$PLACEHASHFINANCE'),
-('ADMIN', '$2y$10$PLACEHASHADMIN');
+('OFFICER', '$2y$10$cq98v2k4n.XzkQNVmEn9b.xzzdbR/YSh9w9r0f96gTEuBHfShFDMy'),
+('FINANCE', '$2y$10$E6JIpvU4eDEUCvp23LKmWuMufY5LvP9YCd7Y5x5R7MbLEgELb9JjS'),
+('ADMIN', '$2y$10$8e.bRVEZg/QXBOGWTCHVR.AoUT7qCHCFs7dKtjPeyUhrk/i5tHE6W');
+
