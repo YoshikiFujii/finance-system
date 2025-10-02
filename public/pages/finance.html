@@ -8,11 +8,78 @@
 <table border="1" cellpadding="6">
 <thead><tr>
 <th>受付番号</th><th>提出日時</th><th>提出者</th><th>部署</th><th>概要</th>
-<th>ネット</th><th>状態</th><th>渡し額</th><th>操作</th>
+<th>ネット</th><th>状態</th><th>渡し額</th><th>処理済み額</th><th>操作</th>
 </tr></thead>
 <tbody id="list"></tbody>
 </table>
 <div id="detail"></div>
+
+<!-- レシートアップロードモーダル -->
+<div id="receiptUploadModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; min-width:400px;">
+<h3>レシートアップロード</h3>
+<form id="receiptUploadForm" enctype="multipart/form-data">
+<input type="hidden" id="uploadRequestId" />
+<div style="margin:10px 0;">
+<label>ファイル:</label><br/>
+<input type="file" id="receiptFile" accept="image/*,.pdf" required />
+</div>
+<div style="margin:10px 0;">
+<label>合計金額:</label><br/>
+<input type="number" id="receiptTotal" step="0.01" min="0" required />
+</div>
+<div style="margin:10px 0;">
+<label>レシート種別:</label><br/>
+<select id="receiptKind">
+<option value="RECEIPT">レシート</option>
+<option value="INVOICE">請求書</option>
+<option value="TRANSFER_SLIP">振込票</option>
+<option value="PAYMENT_SLIP">支払票</option>
+</select>
+</div>
+<div style="margin:10px 0;">
+<label>撮影日時:</label><br/>
+<input type="datetime-local" id="receiptTakenAt" />
+</div>
+<div style="margin:10px 0;">
+<label>メモ:</label><br/>
+<input type="text" id="receiptMemo" placeholder="任意" />
+</div>
+<div style="text-align:right; margin-top:20px;">
+<button type="button" onclick="closeReceiptUploadModal()">キャンセル</button>
+<button type="submit">アップロード</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- レシート一覧モーダル -->
+<div id="receiptListModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; min-width:600px; max-height:80vh; overflow-y:auto;">
+<h3>レシート一覧</h3>
+<div id="receiptList"></div>
+<div style="text-align:right; margin-top:20px;">
+<button onclick="closeReceiptListModal()">閉じる</button>
+</div>
+</div>
+</div>
+
+<!-- レシート処理モーダル -->
+<div id="receiptProcessModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
+<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border-radius:8px; min-width:400px;">
+<h3>レシート処理</h3>
+<div id="receiptProcessInfo"></div>
+<div style="margin:10px 0;">
+<label>お釣りの額:</label><br/>
+<input type="number" id="changeAmount" step="0.01" min="0" value="0" />
+</div>
+<div style="text-align:right; margin-top:20px;">
+<button type="button" onclick="closeReceiptProcessModal()">キャンセル</button>
+<button type="button" onclick="processReceipt()">処理完了</button>
+</div>
+</div>
+</div>
+
 <script>
 async function load(){
 const q=document.getElementById('q').value;
@@ -24,16 +91,93 @@ for(const x of j.data){
 const tr=document.createElement('tr');
 tr.innerHTML=`<td>${x.request_no}</td><td>${x.submitted_at}</td><td>${x.member_name}</td><td>${x.dept_name}</td>
 <td>${x.summary}</td><td>${x.expects_network}</td>
-<td><span class="badge ${x.state}">${x.state}</span></td>
-<td>${x.cash_given??''}</td>
+<td><span class="badge ${x.state}">${getStateText(x.state)}</span></td>
+<td>${x.cash_given ? '¥' + parseFloat(x.cash_given).toLocaleString() : ''}</td>
+<td id="processed_amount_${x.id}">¥0</td>
 <td>
+<button data-id="${x.id}" class="view-excel">内容確認</button>
 <button data-id="${x.id}" class="accept">受理</button>
 <button data-id="${x.id}" class="reject">却下</button>
-<button data-id="${x.id}" class="state">状態→</button>
-<button data-id="${x.id}" class="receipt">レシート</button>
-<button data-id="${x.id}" class="recalc">検算</button>
+<button data-id="${x.id}" class="state-cash-given" style="display: none;">渡し済み</button>
+<button data-id="${x.id}" class="state-collected" style="display: none;">回収済み</button>
+<button data-id="${x.id}" class="receipt-process" style="display: none;">処理</button>
+<button data-id="${x.id}" class="upload-receipt" style="display: none;">レシート追加</button>
+<button data-id="${x.id}" class="view-receipts" style="display: none;">レシート一覧</button>
 </td>`;
 tb.appendChild(tr);
+
+// 状態に応じてボタンの表示を制御
+const row = tb.lastElementChild;
+const acceptBtn = row.querySelector('.accept');
+const rejectBtn = row.querySelector('.reject');
+const cashGivenBtn = row.querySelector('.state-cash-given');
+const collectedBtn = row.querySelector('.state-collected');
+const receiptBtn = row.querySelector('.receipt-process');
+const uploadReceiptBtn = row.querySelector('.upload-receipt');
+const viewReceiptsBtn = row.querySelector('.view-receipts');
+
+if(x.state === 'NEW') {
+  acceptBtn.style.display = 'inline-block';
+  rejectBtn.style.display = 'inline-block';
+} else if(x.state === 'ACCEPTED') {
+  cashGivenBtn.style.display = 'inline-block';
+} else if(x.state === 'CASH_GIVEN') {
+  collectedBtn.style.display = 'inline-block';
+  uploadReceiptBtn.style.display = 'inline-block';
+  viewReceiptsBtn.style.display = 'inline-block';
+  // 渡し済み状態では受理・却下ボタンを非表示
+  acceptBtn.style.display = 'none';
+  rejectBtn.style.display = 'none';
+} else if(x.state === 'COLLECTED') {
+  receiptBtn.style.display = 'inline-block';
+  uploadReceiptBtn.style.display = 'inline-block';
+  viewReceiptsBtn.style.display = 'inline-block';
+  // 回収済み状態でも受理・却下ボタンを非表示
+  acceptBtn.style.display = 'none';
+  rejectBtn.style.display = 'none';
+} else if(x.state === 'RECEIPT_DONE') {
+  uploadReceiptBtn.style.display = 'inline-block';
+  viewReceiptsBtn.style.display = 'inline-block';
+  // 処理完了状態では受理・却下ボタンを非表示
+  acceptBtn.style.display = 'none';
+  rejectBtn.style.display = 'none';
+} else if(x.state === 'REJECTED') {
+  // 却下状態では受理・却下ボタンを非表示
+  acceptBtn.style.display = 'none';
+  rejectBtn.style.display = 'none';
+}
+
+// 処理済み額を取得して表示
+loadProcessedAmount(x.id);
+}
+}
+
+function getStateText(state) {
+const stateMap = {
+'NEW': '未受理',
+'ACCEPTED': '受理',
+'CASH_GIVEN': '渡し済み',
+'COLLECTED': '回収済み',
+'RECEIPT_DONE': '処理完了',
+'REJECTED': '却下'
+};
+return stateMap[state] || state;
+}
+
+// 処理済み額を取得して表示
+async function loadProcessedAmount(requestId) {
+try {
+const r = await fetch(`/api/requests/${requestId}/receipts`);
+const j = await r.json();
+if(j.ok) {
+const totalAmount = j.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+const processedElement = document.getElementById(`processed_amount_${requestId}`);
+if(processedElement) {
+processedElement.textContent = '¥' + totalAmount.toLocaleString();
+}
+}
+} catch(e) {
+console.error('Failed to load processed amount:', e);
 }
 }
 load();
@@ -44,26 +188,253 @@ document.getElementById('reload').onclick=load;
 
 document.addEventListener('click', async (e)=>{
 const id = e.target?.dataset?.id; if(!id) return;
-if(e.target.className==='accept'){
-const r=await fetch(`/api/requests/${id}/accept`,{method:'POST'}); const j=await r.json(); if(!j.ok) return alert(j.message); load();
+if(e.target.className==='view-excel'){
+// エクセルファイルを別タブで表示
+const r=await fetch(`/api/requests/${id}/excel`);
+if(r.ok) {
+const blob = await r.blob();
+const url = URL.createObjectURL(blob);
+window.open(url, '_blank');
+} else {
+alert('ファイルが見つかりません');
+}
+} else if(e.target.className==='accept'){
+const r=await fetch(`/api/requests/${id}/accept`,{method:'POST'}); 
+const j=await r.json(); 
+if(!j.ok) return alert(j.message); 
+load();
+} else if(e.target.className==='state-cash-given'){
+const cashAmount=prompt('渡し額を入力してください'); if(!cashAmount || isNaN(cashAmount)) return;
+const r=await fetch(`/api/requests/${id}/cash`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cash_given:parseFloat(cashAmount)})});
+const j=await r.json(); if(!j.ok) return alert(j.message);
+const r2=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'CASH_GIVEN'})});
+const j2=await r2.json(); if(!j2.ok) return alert(j2.message); load();
+} else if(e.target.className==='state-collected'){
+const r=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'COLLECTED'})});
+const j=await r.json(); if(!j.ok) return alert(j.message); load();
 } else if(e.target.className==='reject'){
 const reason=prompt('却下理由'); if(!reason) return;
 const r=await fetch(`/api/requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
 const j=await r.json(); if(!j.ok) return alert(j.message); load();
-} else if(e.target.className==='state'){
-const next=prompt('次状態を入力 (CASH_GIVEN/COLLECTED/RECEIPT_DONE/CASH_WITHDRAWN/PAID/TRANSFERRED)'); if(!next) return;
-const r=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:next})});
-const j=await r.json(); if(!j.ok) return alert(j.message); load();
-} else if(e.target.className==='receipt'){
-const total=prompt('レシート合計'); if(!total) return;
-const change=prompt('返却額(お釣り/未使用) 0可');
-const f=prompt('ファイルパス（ブラウザではinput要）→ このデモではスキップ。実装時はフォームでmultipart送信してください');
-alert('UI簡略化のため、receiptアップロードはフォームで行ってください');
-} else if(e.target.className==='recalc'){
-const r=await fetch(`/api/requests/${id}/recalc`); const j=await r.json(); if(!j.ok) return alert(j.message);
-alert(`Σレシート=${j.data.sum_total} / Σ返却=${j.data.sum_change} / 差額=${j.data.diff}`);
+} else if(e.target.className==='receipt-process'){
+showReceiptProcessModal(id);
+} else if(e.target.className==='upload-receipt'){
+showReceiptUploadModal(id);
+} else if(e.target.className==='view-receipts'){
+showReceiptListModal(id);
 }
 });
+
+// レシートアップロードモーダル関連
+function showReceiptUploadModal(requestId) {
+document.getElementById('uploadRequestId').value = requestId;
+document.getElementById('receiptTakenAt').value = new Date().toISOString().slice(0, 16);
+document.getElementById('receiptUploadModal').style.display = 'block';
+}
+
+function closeReceiptUploadModal() {
+document.getElementById('receiptUploadModal').style.display = 'none';
+document.getElementById('receiptUploadForm').reset();
+}
+
+// レシート一覧モーダル関連
+async function showReceiptListModal(requestId) {
+const r = await fetch(`/api/requests/${requestId}/receipts`);
+const j = await r.json();
+if(!j.ok) {
+alert('レシートの取得に失敗しました: ' + j.message);
+return;
+}
+
+const receiptList = document.getElementById('receiptList');
+if(j.data.length === 0) {
+receiptList.innerHTML = '<p>レシートがありません</p>';
+} else {
+receiptList.innerHTML = j.data.map(receipt => `
+<div style="border:1px solid #ccc; margin:10px 0; padding:10px;">
+<div style="display:flex; justify-content:space-between; align-items:center;">
+<div>
+<strong>${receipt.kind}</strong> - ¥${parseFloat(receipt.total).toLocaleString()}
+<br/>
+撮影日時: ${receipt.taken_at}
+${receipt.memo ? '<br/>メモ: ' + receipt.memo : ''}
+</div>
+<div>
+<button onclick="viewReceiptImage('${receipt.file_path}')">表示</button>
+<button onclick="deleteReceipt(${requestId}, ${receipt.id})">削除</button>
+</div>
+</div>
+</div>
+`).join('');
+}
+
+document.getElementById('receiptListModal').style.display = 'block';
+}
+
+function closeReceiptListModal() {
+document.getElementById('receiptListModal').style.display = 'none';
+}
+
+// レシート処理モーダル関連
+let currentProcessRequestId = null;
+
+async function showReceiptProcessModal(requestId) {
+currentProcessRequestId = requestId;
+try {
+// リクエスト情報を取得
+const r = await fetch('/api/requests?q=');
+const j = await r.json();
+if(!j.ok) {
+alert('リクエスト情報の取得に失敗しました');
+return;
+}
+const request = j.data.find(req => req.id == requestId);
+if(!request) {
+alert('リクエストが見つかりません');
+return;
+}
+
+// レシート情報を取得
+const receiptR = await fetch(`/api/requests/${requestId}/receipts`);
+const receiptJ = await receiptR.json();
+if(!receiptJ.ok) {
+alert('レシート情報の取得に失敗しました');
+return;
+}
+
+const processedAmount = receiptJ.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+const cashGiven = parseFloat(request.cash_given) || 0;
+
+document.getElementById('receiptProcessInfo').innerHTML = `
+<div style="margin:10px 0;">
+<strong>渡し額:</strong> ¥${cashGiven.toLocaleString()}<br/>
+<strong>処理済み額:</strong> ¥${processedAmount.toLocaleString()}<br/>
+<strong>お釣り予定:</strong> ¥${(cashGiven - processedAmount).toLocaleString()}
+</div>
+`;
+
+document.getElementById('changeAmount').value = Math.max(0, cashGiven - processedAmount);
+document.getElementById('receiptProcessModal').style.display = 'block';
+} catch(e) {
+console.error('Failed to show receipt process modal:', e);
+alert('エラーが発生しました');
+}
+}
+
+function closeReceiptProcessModal() {
+document.getElementById('receiptProcessModal').style.display = 'none';
+currentProcessRequestId = null;
+}
+
+// レシート処理完了
+async function processReceipt() {
+if(!currentProcessRequestId) return;
+
+const changeAmount = parseFloat(document.getElementById('changeAmount').value) || 0;
+
+try {
+// リクエスト情報を取得
+const r = await fetch('/api/requests?q=');
+const j = await r.json();
+if(!j.ok) {
+alert('リクエスト情報の取得に失敗しました');
+return;
+}
+const request = j.data.find(req => req.id == currentProcessRequestId);
+if(!request) {
+alert('リクエストが見つかりません');
+return;
+}
+
+// レシート情報を取得
+const receiptR = await fetch(`/api/requests/${currentProcessRequestId}/receipts`);
+const receiptJ = await receiptR.json();
+if(!receiptJ.ok) {
+alert('レシート情報の取得に失敗しました');
+return;
+}
+
+const processedAmount = receiptJ.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+const cashGiven = parseFloat(request.cash_given) || 0;
+
+// 検証: 処理済み額 + お釣り額 = 渡し額
+if(Math.abs((processedAmount + changeAmount) - cashGiven) > 0.01) {
+alert(`金額が一致しません。\n処理済み額: ¥${processedAmount.toLocaleString()}\nお釣り額: ¥${changeAmount.toLocaleString()}\n合計: ¥${(processedAmount + changeAmount).toLocaleString()}\n渡し額: ¥${cashGiven.toLocaleString()}`);
+return;
+}
+
+// 状態を処理完了に変更
+const stateR = await fetch(`/api/requests/${currentProcessRequestId}/state`, {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({next_state: 'RECEIPT_DONE'})
+});
+const stateJ = await stateR.json();
+if(!stateJ.ok) {
+alert('状態の更新に失敗しました: ' + stateJ.message);
+return;
+}
+
+alert('レシート処理が完了しました');
+closeReceiptProcessModal();
+load(); // 一覧を更新
+} catch(e) {
+console.error('Failed to process receipt:', e);
+alert('エラーが発生しました');
+}
+}
+
+// レシート画像表示
+function viewReceiptImage(filePath) {
+window.open(`/api/requests/receipt-image?path=${encodeURIComponent(filePath)}`, '_blank');
+}
+
+// レシート削除
+async function deleteReceipt(requestId, receiptId) {
+if(!confirm('このレシートを削除しますか？')) return;
+const r = await fetch(`/api/requests/${requestId}/receipt`, {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({receipt_id: receiptId})
+});
+const j = await r.json();
+if(!j.ok) {
+alert('レシートの削除に失敗しました: ' + j.message);
+return;
+}
+alert('レシートを削除しました');
+showReceiptListModal(requestId); // 一覧を更新
+// 処理済み額を更新
+loadProcessedAmount(requestId);
+}
+
+// レシートアップロードフォーム送信
+document.getElementById('receiptUploadForm').addEventListener('submit', async (e) => {
+e.preventDefault();
+const requestId = document.getElementById('uploadRequestId').value;
+const formData = new FormData();
+formData.append('file', document.getElementById('receiptFile').files[0]);
+formData.append('total', document.getElementById('receiptTotal').value);
+formData.append('change_returned', '0'); // 返却額は常に0
+formData.append('kind', document.getElementById('receiptKind').value);
+formData.append('taken_at', document.getElementById('receiptTakenAt').value);
+formData.append('memo', document.getElementById('receiptMemo').value);
+
+const r = await fetch(`/api/requests/${requestId}/receipt`, {
+method: 'POST',
+body: formData
+});
+const j = await r.json();
+if(!j.ok) {
+alert('レシートのアップロードに失敗しました: ' + j.message);
+return;
+}
+alert('レシートをアップロードしました');
+closeReceiptUploadModal();
+// 処理済み額を更新
+loadProcessedAmount(requestId);
+});
+
 </script>
 </body></html>
 

@@ -17,6 +17,13 @@
 <button id="member_add">追加</button>
 </section>
 <section>
+<h2>エクセル一括登録</h2>
+<p>エクセルファイル形式: 1列目=部署名、2列目=氏名</p>
+<input type="file" id="excel_file" accept=".xlsx,.xls" />
+<button id="bulk_upload">一括登録</button>
+<div id="bulk_result"></div>
+</section>
+<section>
 <h2>購入希望リスト</h2>
 <div id="requests"></div>
 <button id="reload_requests">更新</button>
@@ -46,9 +53,25 @@ r.data.map(x=>`<div style="border:1px solid #ccc; margin:5px; padding:10px;">
 <strong>${x.request_no}</strong> - ${x.summary}<br/>
 提出者: ${x.member_name} (${x.dept_name})<br/>
 提出日: ${x.submitted_at}<br/>
-状態: ${x.state}<br/>
+状態: <select id="state_${x.id}" onchange="updateState(${x.id})">
+<option value="NEW" ${x.state === 'NEW' ? 'selected' : ''}>未受理</option>
+<option value="ACCEPTED" ${x.state === 'ACCEPTED' ? 'selected' : ''}>受理</option>
+<option value="CASH_GIVEN" ${x.state === 'CASH_GIVEN' ? 'selected' : ''}>渡し済み</option>
+<option value="COLLECTED" ${x.state === 'COLLECTED' ? 'selected' : ''}>回収済み</option>
+<option value="RECEIPT_DONE" ${x.state === 'RECEIPT_DONE' ? 'selected' : ''}>処理完了</option>
+<option value="REJECTED" ${x.state === 'REJECTED' ? 'selected' : ''}>却下</option>
+</select><br/>
+渡し額: <input type="number" id="cash_${x.id}" value="${x.cash_given || ''}" style="width:100px;" step="0.01" min="0" /> 
+<button onclick="updateCashAmount(${x.id})">更新</button><br/>
+処理済み額: <span id="admin_processed_amount_${x.id}">¥0</span><br/>
+<button onclick="showAdminReceiptList(${x.id})">レシート一覧</button>
 <button onclick="deleteRequest(${x.id}, '${x.request_no}')">削除</button>
 </div>`).join('');
+
+// 各リクエストの処理済み額を取得して表示
+r.data.forEach(request => {
+loadAdminProcessedAmount(request.id);
+});
 }
 load();
 loadRequests();
@@ -80,6 +103,48 @@ load();
 
 document.getElementById('reload_requests').onclick = loadRequests;
 
+// エクセル一括登録
+document.getElementById('bulk_upload').onclick = async () => {
+const fileInput = document.getElementById('excel_file');
+const file = fileInput.files[0];
+if(!file) {
+alert('エクセルファイルを選択してください');
+return;
+}
+
+const formData = new FormData();
+formData.append('excel', file);
+
+try {
+const r = await fetch('/api/masters/bulk-upload', {
+method: 'POST',
+body: formData
+});
+const j = await r.json();
+if(!j.ok) {
+alert('一括登録に失敗しました: ' + j.message);
+return;
+}
+
+document.getElementById('bulk_result').innerHTML = `
+<div style="margin:10px 0; padding:10px; background:#f0f8ff; border:1px solid #ccc;">
+<h4>登録結果</h4>
+<p>部署: ${j.data.departments_created}件追加</p>
+<p>役員: ${j.data.members_created}件追加</p>
+<p>エラー: ${j.data.errors.length}件</p>
+${j.data.errors.length > 0 ? '<p style="color:red;">エラー詳細: ' + j.data.errors.join(', ') + '</p>' : ''}
+</div>
+`;
+
+// 一覧を更新
+load();
+fileInput.value = '';
+} catch(e) {
+console.error('Bulk upload error:', e);
+alert('エラーが発生しました');
+}
+};
+
 async function deleteDepartment(id, name) {
 if(!confirm(`部署「${name}」を削除しますか？\n\n注意: この部署に関連するメンバーやリクエストが存在する場合は削除できません。`)) return;
 const r = await fetch('/api/masters/department', {
@@ -106,6 +171,62 @@ alert('役員を削除しました');
 load();
 }
 
+async function updateState(id) {
+const stateSelect = document.getElementById(`state_${id}`);
+const newState = stateSelect.value;
+if(!newState) return;
+
+const r = await fetch(`/api/requests/${id}/state`, {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({next_state: newState})
+});
+const j = await r.json();
+if(!j.ok) {
+alert('状態の更新に失敗しました: ' + j.message);
+// エラー時は元の状態に戻す
+loadRequests();
+return;
+}
+alert('状態を更新しました');
+loadRequests();
+}
+
+// 管理者ページ用の処理済み額取得関数
+async function loadAdminProcessedAmount(requestId) {
+try {
+const r = await fetch(`/api/requests/${requestId}/receipts`);
+const j = await r.json();
+if(j.ok) {
+const totalAmount = j.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+const processedElement = document.getElementById(`admin_processed_amount_${requestId}`);
+if(processedElement) {
+processedElement.textContent = '¥' + totalAmount.toLocaleString();
+}
+}
+} catch(e) {
+console.error('Failed to load processed amount:', e);
+}
+}
+
+async function updateCashAmount(id) {
+const cashInput = document.getElementById(`cash_${id}`);
+const cashAmount = parseFloat(cashInput.value);
+if(isNaN(cashAmount) || cashAmount < 0) {
+alert('有効な金額を入力してください');
+return;
+}
+const r = await fetch(`/api/requests/${id}/cash`, {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({cash_given: cashAmount})
+});
+const j = await r.json();
+if(!j.ok) return alert(j.message);
+alert('渡し額を更新しました');
+loadRequests();
+}
+
 async function deleteRequest(id, requestNo) {
 if(!confirm(`リクエスト「${requestNo}」を削除しますか？\n\n注意: このリクエストに関連するレシートやアイテムが存在する場合は削除できません。`)) return;
 const r = await fetch(`/api/requests/${id}`, {
@@ -116,6 +237,94 @@ const j = await r.json();
 if(!j.ok) return alert(j.message);
 alert('リクエストを削除しました');
 loadRequests();
+}
+
+// 管理者用レシート一覧表示
+async function showAdminReceiptList(requestId) {
+try {
+const r = await fetch(`/api/requests/${requestId}/receipts`);
+const j = await r.json();
+if(!j.ok) {
+alert('レシートの取得に失敗しました: ' + j.message);
+return;
+}
+
+const receipts = j.data;
+if(receipts.length === 0) {
+alert('レシートがありません');
+return;
+}
+
+let modalContent = `
+<div id="adminReceiptModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;">
+<div style="background:white; padding:20px; border-radius:5px; max-width:600px; max-height:80%; overflow-y:auto;">
+<h3>レシート一覧</h3>
+<div style="margin-bottom:15px;">
+`;
+
+receipts.forEach(receipt => {
+modalContent += `
+<div style="border:1px solid #ccc; margin:5px 0; padding:10px;">
+<strong>種類:</strong> ${receipt.kind || '未設定'}<br/>
+<strong>金額:</strong> ¥${Number(receipt.total).toLocaleString()}<br/>
+<strong>日時:</strong> ${receipt.taken_at || '未設定'}<br/>
+<strong>メモ:</strong> ${receipt.memo || 'なし'}<br/>
+<button onclick="viewReceiptImage('${receipt.file_path}')" style="margin:5px;">表示</button>
+<button onclick="deleteAdminReceipt(${requestId}, ${receipt.id})" style="margin:5px; background:#ff4444; color:white;">削除</button>
+</div>
+`;
+});
+
+modalContent += `
+</div>
+<button onclick="closeAdminReceiptModal()" style="background:#666; color:white; padding:10px 20px;">閉じる</button>
+</div>
+</div>
+`;
+
+document.body.insertAdjacentHTML('beforeend', modalContent);
+} catch(e) {
+console.error('Receipt list error:', e);
+alert('エラーが発生しました');
+}
+}
+
+// 管理者用レシート削除
+async function deleteAdminReceipt(requestId, receiptId) {
+if(!confirm('このレシートを削除しますか？')) return;
+
+try {
+const r = await fetch(`/api/requests/${requestId}/receipt`, {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({receipt_id: receiptId})
+});
+const j = await r.json();
+if(!j.ok) {
+alert('レシートの削除に失敗しました: ' + j.message);
+return;
+}
+
+alert('レシートを削除しました');
+closeAdminReceiptModal();
+loadRequests(); // リクエスト一覧を更新
+} catch(e) {
+console.error('Delete receipt error:', e);
+alert('エラーが発生しました');
+}
+}
+
+// 管理者用レシート画像表示
+function viewReceiptImage(filePath) {
+window.open(`/api/requests/receipt-image?path=${encodeURIComponent(filePath)}`, '_blank');
+}
+
+// 管理者用レシートモーダルを閉じる
+function closeAdminReceiptModal() {
+const modal = document.getElementById('adminReceiptModal');
+if(modal) {
+modal.remove();
+}
 }
 </script>
 </body></html>

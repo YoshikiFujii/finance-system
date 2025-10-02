@@ -15,19 +15,38 @@ class RequestController{
     $expects = (string)($_POST['expects_network'] ?? 'NONE');
     if(!$member_id||!$department_id||$summary==='') return json_ng('missing fields');
     if(!isset($_FILES['excel']) || $_FILES['excel']['error']!==UPLOAD_ERR_OK) return json_ng('excel required');
-    // 保存先
-    $no = date('YmdHis').sprintf('%03d', random_int(100,999));
+    // 保存先（受付番号を簡略化）
+    $no = date('ymd').sprintf('%03d', random_int(1,999));
     $basedir = $cfg['upload_dir'].'/'.date('Y').'/'.date('m').'/'.$no;
-    ensure_dir($basedir);
+    try {
+        error_log("Attempting to create directory: " . $basedir);
+        ensure_dir($basedir);
+        error_log("Directory created successfully: " . $basedir);
+    } catch (Exception $e) {
+        error_log("Upload directory creation failed: " . $e->getMessage());
+        error_log("Directory path: " . $basedir);
+        error_log("Parent directory exists: " . (is_dir(dirname($basedir)) ? 'yes' : 'no'));
+        error_log("Parent directory writable: " . (is_writable(dirname($basedir)) ? 'yes' : 'no'));
+        return json_ng('アップロードディレクトリの作成に失敗しました。管理者にお問い合わせください。');
+    }
     // 拡張子/サイズ/MIMEチェック（簡易）
     $f = $_FILES['excel'];
     $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
     $allowed = ['xlsx','xls'];
     if(!in_array($ext,$allowed,true)) return json_ng('invalid excel extension');
     if($f['size'] > 10*1024*1024) return json_ng('file too large');
-    $fname = safe_filename(pathinfo($f['name'], PATHINFO_FILENAME)).'_'.date('His').'.'.$ext;
+
+    // ファイル名を元の名前のまま保持（重複回避のためタイムスタンプとランダム数を追加）
+    $original_name = pathinfo($f['name'], PATHINFO_FILENAME);
+    $timestamp = date('His');
+    $random = sprintf('%03d', random_int(100,999));
+    $fname = $original_name . '_' . $timestamp . '_' . $random . '.' . $ext;
     $path = $basedir.'/'.$fname;
-    move_uploaded_file($f['tmp_name'],$path);
+    
+    if(!move_uploaded_file($f['tmp_name'],$path)) {
+        error_log("File upload failed: " . $f['tmp_name'] . " -> " . $path);
+        return json_ng('ファイルのアップロードに失敗しました。管理者にお問い合わせください。');
+    }
 
 
     $st = db()->prepare('INSERT INTO requests(request_no,member_id,department_id,submitted_at,summary,expects_network,excel_path) VALUES (?,?,?,?,?,?,?)');
@@ -85,10 +104,18 @@ return json_ok();
 static function state($id){ require_role(['FINANCE','ADMIN']);
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
 $next = (string)($in['next_state'] ?? '');
-$ok = self::can_transition($id,$next);
-if(!$ok) return json_ng('invalid transition',409);
+$valid_states = ['NEW','ACCEPTED','REJECTED','CASH_GIVEN','COLLECTED','RECEIPT_DONE'];
+if(!in_array($next, $valid_states, true)) return json_ng('invalid state',400);
+
+// 管理者の場合は状態遷移制限を無視
+$user_role = $_SESSION['role'] ?? '';
+if($user_role !== 'ADMIN') {
+    $ok = self::can_transition($id,$next);
+    if(!$ok) return json_ng('invalid transition',409);
+}
+
 db()->prepare('UPDATE requests SET state=? WHERE id=?')->execute([$next,$id]);
-db()->prepare('INSERT INTO audit_logs(request_id,actor,action,detail) VALUES (?,?,?,?)')->execute([$id,'FINANCE','STATE',$next]);
+db()->prepare('INSERT INTO audit_logs(request_id,actor,action,detail) VALUES (?,?,?,?)')->execute([$id,$user_role,'STATE',$next]);
 return json_ok();
 }
 
@@ -99,8 +126,8 @@ $cur->execute([$id]); $row=$cur->fetch(); if(!$row) return false;
 $state=$row['state']; $net=$row['expects_network'];
 $flows = [
 'NONE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE' ],
-'CONVENIENCE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_WITHDRAWN','CASH_WITHDRAWN=>PAID','PAID=>RECEIPT_DONE' ],
-'BANK_TRANSFER' => [ 'NEW=>ACCEPTED','ACCEPTED=>TRANSFERRED','TRANSFERRED=>RECEIPT_DONE' ]
+'CONVENIENCE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE' ],
+'BANK_TRANSFER' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE' ]
 ];
 return in_array("$state=>$next", $flows[$net] ?? [], true);
 }
@@ -125,7 +152,7 @@ ensure_dir($basedir);
 $f=$_FILES['file']; $ext=strtolower(pathinfo($f['name'],PATHINFO_EXTENSION));
 $allowed=['jpg','jpeg','png','pdf']; if(!in_array($ext,$allowed,true)) return json_ng('invalid file type');
 if($f['size']>10*1024*1024) return json_ng('file too large');
-$fname=safe_filename(pathinfo($f['name'],PATHINFO_FILENAME)).'_'.date('His').'.'.$ext;
+$fname=$f['name'];
 $path=$basedir.'/'.$fname; move_uploaded_file($f['tmp_name'],$path);
 
 
@@ -149,6 +176,113 @@ $diff = round(((float)$row['expected_total']) - $s['t'], 2);
 }
 db()->prepare('UPDATE requests SET diff_amount=? WHERE id=?')->execute([$diff,$id]);
 return json_ok(['sum_total'=>(float)$s['t'],'sum_change'=>(float)$s['c'],'diff'=>$diff]);
+}
+
+static function view_excel($id){ require_role(['FINANCE','ADMIN']);
+    $st = db()->prepare('SELECT excel_path FROM requests WHERE id = ?');
+    $st->execute([$id]);
+    $row = $st->fetch();
+    if(!$row) {
+        http_response_code(404);
+        echo 'File not found';
+        return;
+    }
+    
+    $file_path = $row['excel_path'];
+    
+    // 相対パスの場合は絶対パスに変換
+    if(!file_exists($file_path)) {
+        // /var/www/html/app/../../storage/... の形式を /var/www/html/storage/... に変換
+        $file_path = str_replace('/var/www/html/app/../../', '/var/www/html/', $file_path);
+    }
+    
+    if(!file_exists($file_path)) {
+        http_response_code(404);
+        echo 'File not found: ' . $file_path;
+        return;
+    }
+    
+    $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+    $mime_types = [
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'xls' => 'application/vnd.ms-excel'
+    ];
+    
+    $mime_type = $mime_types[$ext] ?? 'application/octet-stream';
+    
+    header('Content-Type: ' . $mime_type);
+    header('Content-Disposition: inline; filename="' . basename($file_path) . '"');
+    header('Content-Length: ' . filesize($file_path));
+    
+    readfile($file_path);
+}
+
+static function view_receipt_image(){ require_role(['FINANCE','ADMIN']);
+    $file_path = $_GET['path'] ?? '';
+    if(!$file_path) {
+        http_response_code(400);
+        echo 'File path required';
+        return;
+    }
+    
+    // 相対パスの場合は絶対パスに変換
+    if(!file_exists($file_path)) {
+        $file_path = str_replace('/var/www/html/app/../../', '/var/www/html/', $file_path);
+    }
+    
+    if(!file_exists($file_path)) {
+        http_response_code(404);
+        echo 'File not found: ' . $file_path;
+        return;
+    }
+    
+    $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+    $mime_types = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'pdf' => 'application/pdf'
+    ];
+    
+    $mime_type = $mime_types[$ext] ?? 'application/octet-stream';
+    
+    header('Content-Type: ' . $mime_type);
+    header('Content-Disposition: inline; filename="' . basename($file_path) . '"');
+    header('Content-Length: ' . filesize($file_path));
+    
+    readfile($file_path);
+}
+
+static function get_receipts($id){ require_role(['FINANCE','ADMIN']);
+    $st = db()->prepare('SELECT id, kind, total, change_returned, file_path, taken_at, memo FROM receipts WHERE request_id = ? ORDER BY taken_at DESC');
+    $st->execute([$id]);
+    $receipts = $st->fetchAll();
+    return json_ok($receipts);
+}
+
+static function delete_receipt($id){ require_role(['FINANCE','ADMIN']);
+    $in = json_decode(file_get_contents('php://input'), true) ?: [];
+    $receipt_id = (int)($in['receipt_id'] ?? 0);
+    if(!$receipt_id) return json_ng('receipt_id required');
+    
+    // レシート情報を取得
+    $st = db()->prepare('SELECT file_path FROM receipts WHERE id = ? AND request_id = ?');
+    $st->execute([$receipt_id, $id]);
+    $receipt = $st->fetch();
+    if(!$receipt) return json_ng('レシートが見つかりません');
+    
+    // レシートを削除
+    $st = db()->prepare('DELETE FROM receipts WHERE id = ? AND request_id = ?');
+    $st->execute([$receipt_id, $id]);
+    
+    if($st->rowCount() === 0) return json_ng('レシートの削除に失敗しました');
+    
+    // ファイルも削除
+    if(file_exists($receipt['file_path'])) {
+        unlink($receipt['file_path']);
+    }
+    
+    return json_ok();
 }
 
 static function delete($id){ require_role(['ADMIN']);

@@ -76,4 +76,120 @@ class MasterController{
         
         return json_ok();
     }
+
+    static function bulk_upload(){ require_role(['ADMIN']);
+        // PhpSpreadsheetのautoloadを読み込み
+        if (!class_exists('PhpOffice\PhpSpreadsheet\IOFactory')) {
+            require_once __DIR__ . '/../../vendor/autoload.php';
+        }
+        
+        if(!isset($_FILES['excel']) || $_FILES['excel']['error'] !== UPLOAD_ERR_OK) {
+            return json_ng('excel file required');
+        }
+
+        $file = $_FILES['excel'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['xlsx', 'xls'];
+        if(!in_array($ext, $allowed, true)) {
+            return json_ng('invalid excel extension');
+        }
+
+        // 一時ファイルを読み込み
+        $tempFile = $file['tmp_name'];
+        $data = self::parseExcelFile($tempFile);
+        
+        if(empty($data)) {
+            return json_ng('no data found in excel file');
+        }
+
+        $departments_created = 0;
+        $members_created = 0;
+        $errors = [];
+        $department_map = []; // 部署名 -> ID のマッピング
+
+        // 既存の部署を取得
+        $existing_deps = db()->query('SELECT id, name FROM departments WHERE is_active=1')->fetchAll();
+        foreach($existing_deps as $dep) {
+            $department_map[$dep['name']] = $dep['id'];
+        }
+
+        foreach($data as $row_num => $row) {
+            $dept_name = $row['department'];
+            $member_name = $row['member'];
+
+            if(empty($dept_name) || empty($member_name)) {
+                $errors[] = "行{$row_num}: 部署名または氏名が空です";
+                continue;
+            }
+
+            // 部署が存在しない場合は作成
+            if(!isset($department_map[$dept_name])) {
+                try {
+                    $st = db()->prepare('INSERT INTO departments(name, is_active) VALUES(?, 1)');
+                    $st->execute([$dept_name]);
+                    $dept_id = db()->lastInsertId();
+                    $department_map[$dept_name] = $dept_id;
+                    $departments_created++;
+                } catch(Exception $e) {
+                    $errors[] = "行{$row_num}: 部署「{$dept_name}」の作成に失敗しました";
+                    continue;
+                }
+            }
+
+            $dept_id = $department_map[$dept_name];
+
+            // メンバーが既に存在するかチェック
+            $st = db()->prepare('SELECT COUNT(*) FROM members WHERE name = ? AND department_id = ?');
+            $st->execute([$member_name, $dept_id]);
+            if($st->fetchColumn() > 0) {
+                $errors[] = "行{$row_num}: メンバー「{$member_name}」は既に存在します";
+                continue;
+            }
+
+            // メンバーを作成
+            try {
+                $st = db()->prepare('INSERT INTO members(name, department_id, is_active) VALUES(?, ?, 1)');
+                $st->execute([$member_name, $dept_id]);
+                $members_created++;
+            } catch(Exception $e) {
+                $errors[] = "行{$row_num}: メンバー「{$member_name}」の作成に失敗しました";
+            }
+        }
+
+        return json_ok([
+            'departments_created' => $departments_created,
+            'members_created' => $members_created,
+            'errors' => $errors
+        ]);
+    }
+
+    private static function parseExcelFile($filePath) {
+        try {
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($filePath);
+            $spreadsheet = $reader->load($filePath);
+            $worksheet = $spreadsheet->getActiveSheet();
+            $data = [];
+            
+            $highestRow = $worksheet->getHighestRow();
+            
+            for ($row = 1; $row <= $highestRow; $row++) {
+                $department = $worksheet->getCell('A' . $row)->getValue();
+                $member = $worksheet->getCell('B' . $row)->getValue();
+                
+                // 空の行をスキップ
+                if (empty($department) && empty($member)) {
+                    continue;
+                }
+                
+                $data[] = [
+                    'department' => trim($department),
+                    'member' => trim($member)
+                ];
+            }
+            
+            return $data;
+        } catch (Exception $e) {
+            throw new Exception('Excelファイルの読み込みに失敗しました: ' . $e->getMessage());
+        }
+    }
 }

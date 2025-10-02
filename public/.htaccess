@@ -2,11 +2,11 @@ RewriteEngine On
 
 # API リクエストを index.php にリダイレクト
 RewriteCond %{REQUEST_URI} ^/api/
-RewriteRule ^(.*)$ /index.php [QSA,L]
+RewriteRule ^api/(.*)$ index.php [QSA,L]
 
 # 静的ファイルはそのまま配信
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^(.*)$ - [L]
 
 # その他のリクエストも index.php にリダイレクト（SPA用）
-RewriteRule ^(.*)$ /index.php [QSA,L]
+RewriteRule ^(.*)$ index.php [QSA,L]

@@ -7,7 +7,7 @@ return [
         'user' => getenv('DB_USER') ?: 'finance',
         'pass' => getenv('DB_PASS') ?: 'financepass'
     ],
-    'upload_dir' => __DIR__ . '/../../storage/uploads',
+    'upload_dir' => '/var/www/html/storage/uploads',
     'session_name' => 'finance_sid',
     'session_lifetime' => 1200, // 20分
 ];
