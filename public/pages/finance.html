@@ -87,7 +87,7 @@
 <script>
 async function load(){
 const q=document.getElementById('q').value;
-const r=await fetch('/api/requests?q='+encodeURIComponent(q));
+const r=await fetch('/index.php?path=/api/requests&q='+encodeURIComponent(q));
 const j=await r.json();
 const tb=document.getElementById('list'); tb.innerHTML='';
 if(!j.ok){ alert(j.message); return; }
@@ -219,7 +219,7 @@ return request.expects_network;
 // 処理済み額を取得して表示
 async function loadProcessedAmount(requestId) {
 try {
-const r = await fetch(`/api/requests/${requestId}/receipts`);
+const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipts`);
 const j = await r.json();
 if(j.ok) {
 const totalAmount = j.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
@@ -242,7 +242,7 @@ document.addEventListener('click', async (e)=>{
 const id = e.target?.dataset?.id; if(!id) return;
 if(e.target.className==='view-excel'){
 // エクセルファイルを別タブで表示
-const r=await fetch(`/api/requests/${id}/excel`);
+const r=await fetch(`/index.php?path=/api/requests/${id}/excel`);
 if(r.ok) {
 const blob = await r.blob();
 const url = URL.createObjectURL(blob);
@@ -251,28 +251,28 @@ window.open(url, '_blank');
 alert('ファイルが見つかりません');
 }
 } else if(e.target.className==='accept'){
-const r=await fetch(`/api/requests/${id}/accept`,{method:'POST'}); 
+const r=await fetch(`/index.php?path=/api/requests/${id}/accept`,{method:'POST'}); 
 const j=await r.json(); 
 if(!j.ok) return alert(j.message); 
 load();
 } else if(e.target.className==='state-cash-given'){
 const cashAmount=prompt('渡し額を入力してください'); if(!cashAmount || isNaN(cashAmount)) return;
-const r=await fetch(`/api/requests/${id}/cash`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cash_given:parseFloat(cashAmount)})});
+const r=await fetch(`/index.php?path=/api/requests/${id}/cash`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cash_given:parseFloat(cashAmount)})});
 const j=await r.json(); if(!j.ok) return alert(j.message);
-const r2=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'CASH_GIVEN'})});
+const r2=await fetch(`/index.php?path=/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'CASH_GIVEN'})});
 const j2=await r2.json(); if(!j2.ok) return alert(j2.message); load();
 } else if(e.target.className==='transfer'){
 const transferAmount=prompt('振込金額を入力してください'); if(!transferAmount || isNaN(transferAmount)) return;
-const r=await fetch(`/api/requests/${id}/cash`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cash_given:parseFloat(transferAmount)})});
+const r=await fetch(`/index.php?path=/api/requests/${id}/cash`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cash_given:parseFloat(transferAmount)})});
 const j=await r.json(); if(!j.ok) return alert(j.message);
-const r2=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'TRANSFERRED'})});
+const r2=await fetch(`/index.php?path=/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'TRANSFERRED'})});
 const j2=await r2.json(); if(!j2.ok) return alert(j2.message); load();
 } else if(e.target.className==='state-collected'){
-const r=await fetch(`/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'COLLECTED'})});
+const r=await fetch(`/index.php?path=/api/requests/${id}/state`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next_state:'COLLECTED'})});
 const j=await r.json(); if(!j.ok) return alert(j.message); load();
 } else if(e.target.className==='reject'){
 const reason=prompt('却下理由'); if(!reason) return;
-const r=await fetch(`/api/requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
+const r=await fetch(`/index.php?path=/api/requests/${id}/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason})});
 const j=await r.json(); if(!j.ok) return alert(j.message); load();
 } else if(e.target.className==='receipt-process'){
 showReceiptProcessModal(id);
@@ -290,7 +290,7 @@ async function showReceiptUploadModal(requestId) {
 
   // リクエスト情報を取得して支払い者名を設定
   try {
-    const response = await fetch('/api/requests');
+    const response = await fetch('/index.php?path=/api/requests');
     const result = await response.json();
     if (result.ok) {
       const request = result.data.find(r => r.id == requestId);
@@ -304,7 +304,7 @@ async function showReceiptUploadModal(requestId) {
 
   // 行事データを読み込み
   try {
-    const response = await fetch('/api/masters/events');
+    const response = await fetch('/index.php?path=/api/masters/events');
     const result = await response.json();
     if (result.ok) {
       const eventSelect = document.getElementById('receiptEvent');
@@ -326,14 +326,14 @@ document.getElementById('receiptUploadForm').reset();
 // レシート一覧モーダル関連
 async function showReceiptListModal(requestId) {
 // リクエストの状態を取得
-const requestResponse = await fetch('/api/requests');
+const requestResponse = await fetch('/index.php?path=/api/requests');
 const requestResult = await requestResponse.json();
 let currentRequest = null;
 if (requestResult.ok) {
   currentRequest = requestResult.data.find(r => r.id == requestId);
 }
 
-const r = await fetch(`/api/requests/${requestId}/receipts`);
+const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipts`);
 const j = await r.json();
 if(!j.ok) {
 alert('レシートの取得に失敗しました: ' + j.message);
@@ -402,7 +402,7 @@ ${receipt.memo ? `
 </div>
 <div class="receipt-image">
 <label>レシート画像:</label>
-<img src="/api/requests/receipt-image?path=${encodeURIComponent(receipt.file_path)}" 
+<img src="/index.php?path=/api/requests/receipt-image&path=${encodeURIComponent(receipt.file_path)}" 
      alt="レシート画像" 
      class="receipt-preview"
      onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -424,7 +424,7 @@ document.getElementById('receiptListModal').classList.remove('show');
 // レシートの記入状態を切り替え
 async function toggleReceiptStatus(receiptId, requestId, newStatus) {
   try {
-    const response = await fetch(`/api/requests/${requestId}/receipt-status`, {
+    const response = await fetch(`/index.php?path=/api/requests/${requestId}/receipt-status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -472,7 +472,7 @@ async function showReceiptProcessModal(requestId) {
 currentProcessRequestId = requestId;
 try {
 // リクエスト情報を取得
-const r = await fetch('/api/requests?q=');
+const r = await fetch('/index.php?path=/api/requests&q=');
 const j = await r.json();
 if(!j.ok) {
 alert('リクエスト情報の取得に失敗しました');
@@ -485,7 +485,7 @@ return;
 }
 
 // レシート情報を取得
-const receiptR = await fetch(`/api/requests/${requestId}/receipts`);
+const receiptR = await fetch(`/index.php?path=/api/requests/${requestId}/receipts`);
 const receiptJ = await receiptR.json();
 if(!receiptJ.ok) {
 alert('レシート情報の取得に失敗しました');
@@ -524,7 +524,7 @@ const changeAmount = parseFloat(document.getElementById('changeAmount').value) |
 
 try {
 // リクエスト情報を取得
-const r = await fetch('/api/requests?q=');
+const r = await fetch('/index.php?path=/api/requests&q=');
 const j = await r.json();
 if(!j.ok) {
 alert('リクエスト情報の取得に失敗しました');
@@ -537,7 +537,7 @@ return;
 }
 
 // レシート情報を取得
-const receiptR = await fetch(`/api/requests/${currentProcessRequestId}/receipts`);
+const receiptR = await fetch(`/index.php?path=/api/requests/${currentProcessRequestId}/receipts`);
 const receiptJ = await receiptR.json();
 if(!receiptJ.ok) {
 alert('レシート情報の取得に失敗しました');
@@ -554,7 +554,7 @@ return;
 }
 
 // 状態を処理完了に変更
-const stateR = await fetch(`/api/requests/${currentProcessRequestId}/state`, {
+const stateR = await fetch(`/index.php?path=/api/requests/${currentProcessRequestId}/state`, {
 method: 'POST',
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify({next_state: 'RECEIPT_DONE'})
@@ -576,13 +576,13 @@ alert('エラーが発生しました');
 
 // レシート画像表示
 function viewReceiptImage(filePath) {
-window.open(`/api/requests/receipt-image?path=${encodeURIComponent(filePath)}`, '_blank');
+window.open(`/index.php?path=/api/requests/receipt-image&path=${encodeURIComponent(filePath)}`, '_blank');
 }
 
 // レシート削除
 async function deleteReceipt(requestId, receiptId) {
 if(!confirm('このレシートを削除しますか？')) return;
-const r = await fetch(`/api/requests/${requestId}/receipt`, {
+const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipt`, {
 method: 'DELETE',
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify({receipt_id: receiptId})
@@ -633,9 +633,9 @@ for (let [key, value] of formData.entries()) {
   console.log(key, ':', value);
 }
 
-console.log('Receipt upload debug - Sending request to:', `/api/requests/${requestId}/receipt`);
+console.log('Receipt upload debug - Sending request to:', `/index.php?path=/api/requests/${requestId}/receipt`);
 
-const r = await fetch(`/api/requests/${requestId}/receipt`, {
+const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipt`, {
 method: 'POST',
 body: formData
 });
@@ -672,7 +672,7 @@ function updateBannerLogo() {
 // ログアウト機能
 async function logout() {
     try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await fetch('/index.php?path=/api/auth/logout', { method: 'POST' });
         location.href = '/pages/login.html';
     } catch (e) {
         console.error('Logout failed:', e);

@@ -44,8 +44,22 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', upd
 async function login() {
     const role = document.getElementById('role').value;
     const password = document.getElementById('pw').value;
-    const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,password})});
-    const j = await r.json(); if(!j.ok){ alert(j.message); return; }
+    
+    // 直接index.phpにアクセス
+    const formData = new FormData();
+    formData.append('role', role);
+    formData.append('password', password);
+    
+    const r = await fetch('/index.php', {
+        method: 'POST',
+        body: formData
+    });
+    
+    const j = await r.json(); 
+    if(!j.ok){ 
+        alert(j.message); 
+        return; 
+    }
     location.href = role==='OFFICER'? '/pages/officer.html' : role==='FINANCE'? '/pages/finance.html' : '/pages/admin.html';
 }
 

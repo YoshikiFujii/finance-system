@@ -3,23 +3,28 @@ version: "3.9"
 services:
   app:
     build: .
-    container_name: finance_app
+    container_name: finance_app_prod
     ports:
-      - "8080:80"
+      - "80:80"
+      - "443:443"
     environment:
       DB_HOST: db
       DB_PORT: 3306
       DB_NAME: finance_db
       DB_USER: finance
       DB_PASS: financepass
+      PRODUCTION: "true"
     volumes:
       - ./:/var/www/html
+      - ./logs:/var/log/finance
+      - ./backups:/var/backups/finance
     depends_on:
       - db
+    restart: unless-stopped
 
   db:
     image: mysql:8.0
-    container_name: finance_db
+    container_name: finance_db_prod
     environment:
       MYSQL_DATABASE: finance_db
       MYSQL_USER: finance
@@ -27,9 +32,10 @@ services:
       MYSQL_ROOT_PASSWORD: rootpass
     command: ["--default-authentication-plugin=mysql_native_password"]
     volumes:
-      - dbdata:/var/lib/mysql
+      - dbdata_prod:/var/lib/mysql
       - ./sql/schema.sql:/docker-entrypoint-initdb.d/1_schema.sql:ro
-
+      - ./backups:/var/backups/mysql
+    restart: unless-stopped
 
 volumes:
-  dbdata:
+  dbdata_prod:

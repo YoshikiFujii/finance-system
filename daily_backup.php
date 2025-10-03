@@ -59,7 +59,7 @@ try {
     
     // mysqldumpコマンドを実行
     $command = sprintf(
-        'mysqldump -h %s -P %s -u %s -p%s --single-transaction --routines --triggers %s %s > %s',
+        'mysqldump -h %s -P %s -u %s -p%s --single-transaction --routines --triggers --skip-ssl %s %s > %s',
         escapeshellarg($cfg['db']['host']),
         escapeshellarg($cfg['db']['port']),
         escapeshellarg($cfg['db']['user']),

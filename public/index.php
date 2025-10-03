@@ -12,6 +12,18 @@ require_once __DIR__.'/../app/controllers/BackupController.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// クエリパラメータからパスを取得（フォールバック）
+if (isset($_GET['path'])) {
+    $path = $_GET['path'];
+}
+
+// デバッグ情報
+error_log("Method: $method, Path: $path, REQUEST_URI: " . $_SERVER['REQUEST_URI']);
+
+// POSTデータからログインリクエストを判定
+if ($method === 'POST' && isset($_POST['role']) && isset($_POST['password'])) {
+    return AuthController::login();
+}
 
 // 静的HTMLを返す場合（/pages/*）はWebサーバで配信推奨。ここではAPIのみを扱う。
 
