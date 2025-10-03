@@ -1,0 +1,25 @@
+# Lotus 日次バックアップ設定例
+# 
+# このファイルの内容を crontab -e で追加してください
+# 
+# 毎日午前2時にバックアップを実行
+0 2 * * * /usr/bin/php /path/to/finance-system/daily_backup.php
+#
+# または、より詳細なログ出力が必要な場合
+# 0 2 * * * /usr/bin/php /path/to/finance-system/daily_backup.php >> /var/log/lotus_backup.log 2>&1
+#
+# 手動実行テスト用（5分後に実行）
+# */5 * * * * /usr/bin/php /path/to/finance-system/daily_backup.php
+#
+# 注意: /path/to/finance-system を実際のプロジェクトパスに置き換えてください
+#
+# crontab設定方法:
+# 1. ターミナルで crontab -e を実行
+# 2. 上記の行を追加（# を削除）
+# 3. 保存して終了
+#
+# 設定確認:
+# crontab -l
+#
+# ログ確認:
+# tail -f /path/to/finance-system/logs/backup.log

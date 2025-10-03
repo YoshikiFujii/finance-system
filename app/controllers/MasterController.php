@@ -16,6 +16,10 @@ class MasterController{
         ORDER BY m.id')->fetchAll();
     return json_ok($rows);
     }
+    static function events_list(){ require_role(['OFFICER','FINANCE','ADMIN']);
+        $rows = db()->query('SELECT id,name,is_active FROM events WHERE is_active=1 ORDER BY id')->fetchAll();
+        return json_ok($rows);
+    }
     static function upsert_department(){ require_role(['ADMIN']);
         $in = json_decode(file_get_contents('php://input'), true) ?: [];
         $id = $in['id'] ?? null; $name = trim((string)($in['name'] ?? '')); $active = (int)($in['is_active'] ?? 1);
@@ -191,5 +195,28 @@ class MasterController{
         } catch (Exception $e) {
             throw new Exception('Excelファイルの読み込みに失敗しました: ' . $e->getMessage());
         }
+    }
+    static function upsert_event(){ require_role(['ADMIN']);
+        $in = json_decode(file_get_contents('php://input'), true) ?: [];
+        $id = $in['id'] ?? null; $name = trim((string)($in['name'] ?? '')); $active = (int)($in['is_active'] ?? 1);
+        if($name==='') return json_ng('name required');
+        if($id){ $st=db()->prepare('UPDATE events SET name=?, is_active=? WHERE id=?'); $st->execute([$name,$active,$id]); }
+        else { $st=db()->prepare('INSERT INTO events(name,is_active) VALUES(?,?)'); $st->execute([$name,$active]); }
+        return json_ok();
+    }
+    static function delete_event(){ require_role(['ADMIN']);
+        $in = json_decode(file_get_contents('php://input'), true) ?: [];
+        $id = (int)($in['id'] ?? 0);
+        if(!$id) return json_ng('id required');
+        
+        // 行事に関連するレシートが存在するかチェック
+        $st = db()->prepare("SELECT COUNT(*) FROM receipts WHERE event_id = ?");
+        $st->execute([$id]);
+        $receipt_count = $st->fetchColumn();
+        if($receipt_count > 0) return json_ng('行事に関連するレシートが存在するため削除できません');
+        
+        $st = db()->prepare('DELETE FROM events WHERE id=?');
+        $st->execute([$id]);
+        return json_ok();
     }
 }

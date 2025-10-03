@@ -3,7 +3,9 @@
 <link rel="stylesheet" href="../assets/app.css?v=1"/>
 <body class="login-page">
     <main class="container">
-        <h1>Lotus - ログイン</h1>
+        <div class="logo-container">
+            <img id="logo" src="../assets/logo-wh.png" alt="Lotus" class="logo">
+        </div>
         <form id="loginForm">
             <label>
                 ページ:
@@ -21,6 +23,24 @@
         <button id="go">ログイン</button>
     </main>
 <script>
+// テーマに応じてロゴを切り替える関数
+function updateLogo() {
+    const logo = document.getElementById('logo');
+    const isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (isDarkTheme) {
+        logo.src = '../assets/logo-wh.png'; // ダークテーマ時は白いロゴ
+    } else {
+        logo.src = '../assets/logo-bl.png'; // ライトテーマ時は黒いロゴ
+    }
+}
+
+// ページ読み込み時にロゴを設定
+document.addEventListener('DOMContentLoaded', updateLogo);
+
+// テーマ変更を監視
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateLogo);
+
 async function login() {
     const role = document.getElementById('role').value;
     const password = document.getElementById('pw').value;
@@ -46,4 +66,11 @@ document.getElementById('pw').addEventListener('keypress', (e) => {
     }
 });
 </script>
+
+<footer class="page-footer">
+    <div class="footer-content">
+        <img src="../assets/RyoyuLogo.png" alt="寮友会ロゴ" class="footer-logo">
+        <div class="footer-text">© 千葉工業大学寮友会執行役員会 / 財務管理システム - Lotus</div>
+    </div>
+</footer>
 </body></html>

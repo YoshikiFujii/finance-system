@@ -1,45 +1,163 @@
 <!doctype html><html lang="ja"><meta charset="utf-8"/>
 <title>Lotus - 管理者ページ</title>
-<link rel="stylesheet" href="../assets/app.css?v=1">
+    <link rel="stylesheet" href="../assets/app.css?v=7">
 <body>
-<h1>Lotus - 管理者</h1>
-<section>
-<h2>部署マスタ</h2>
-<div id="deps"></div>
-<input id="dep_name" placeholder="部署名"/> <button id="dep_add">追加</button>
+<div class="page-banner">
+    <img id="banner-logo" src="../assets/logo-wh.png" alt="Lotus" class="banner-logo">
+    <h1 class="banner-title">管理者</h1>
+    <div class="banner-spacer"></div>
+    <button class="banner-logout" onclick="logout()">ログアウト</button>
+</div>
+
+<section class="full-width-section">
+  <h2>購入希望リスト</h2>
+  <div id="requests"></div>
+  <div class="request-actions">
+    <button id="reload_requests">更新</button>
+    <button id="create_backup_from_list" class="btn-primary">手動バックアップ作成</button>
+    <button id="clear_requests" class="danger-button">購入希望リストクリア</button>
+  </div>
 </section>
-<section>
-<h2>役員マスタ</h2>
-<div id="members"></div>
-<input id="member_name" placeholder="役員名"/> 
-<select id="member_department">
-<option value="">部署を選択</option>
-</select>
-<button id="member_add">追加</button>
-</section>
-<section>
-<h2>エクセル一括登録</h2>
-<p>エクセルファイル形式: 1列目=部署名、2列目=氏名</p>
-<input type="file" id="excel_file" accept=".xlsx,.xls" />
-<button id="bulk_upload">一括登録</button>
-<div id="bulk_result"></div>
-</section>
-<section>
-<h2>購入希望リスト</h2>
-<div id="requests"></div>
-<button id="reload_requests">更新</button>
-</section>
+
+<div class="admin-grid">
+  <div class="admin-card">
+    <h2>行事マスタ</h2>
+    <div id="events"></div>
+    <div class="form-group">
+      <input id="event_name" placeholder="行事名"/> 
+      <button id="event_add">追加</button>
+    </div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>エクセル一括登録</h2>
+    <p>エクセルファイル形式: 1列目=部署名、2列目=氏名</p>
+    <div class="form-group">
+      <input type="file" id="excel_file" accept=".xlsx,.xls" />
+      <button id="bulk_upload">一括登録</button>
+    </div>
+    <div id="bulk_result"></div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>部署マスタ</h2>
+    <div id="deps"></div>
+    <div class="form-group">
+      <input id="dep_name" placeholder="部署名"/> 
+      <button id="dep_add">追加</button>
+    </div>
+    <div class="form-group">
+      <button id="clear_departments" class="danger-button">部署マスタクリア</button>
+    </div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>役員マスタ</h2>
+    <div id="members"></div>
+    <div class="form-group">
+      <input id="member_name" placeholder="役員名"/> 
+      <select id="member_department">
+        <option value="">部署を選択</option>
+      </select>
+      <button id="member_add">追加</button>
+    </div>
+    <div class="form-group">
+      <button id="clear_members" class="danger-button">役員マスタクリア</button>
+    </div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>バックアップ管理</h2>
+    <div class="form-group">
+      <button id="create_backup" class="btn-primary">手動バックアップ作成</button>
+    </div>
+    <div class="form-group">
+      <label>期間指定検索:</label>
+      <input type="date" id="backup_start_date" />
+      <input type="date" id="backup_end_date" />
+      <button id="search_backups">検索</button>
+    </div>
+    <div id="backup_list"></div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>管理者パスワード変更</h2>
+    <div class="form-group">
+      <label>現在のパスワード:</label>
+      <input type="password" id="admin_current_password" placeholder="現在のパスワード" />
+    </div>
+    <div class="form-group">
+      <label>新しいパスワード:</label>
+      <input type="password" id="admin_new_password" placeholder="新しいパスワード" />
+    </div>
+    <div class="form-group">
+      <label>確認:</label>
+      <input type="password" id="admin_confirm_password" placeholder="新しいパスワード（確認）" />
+    </div>
+    <div class="form-group">
+      <button id="change_admin_password" class="btn-primary">管理者パスワード変更</button>
+    </div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>財務パスワード変更</h2>
+    <div class="form-group">
+      <label>現在のパスワード:</label>
+      <input type="password" id="finance_current_password" placeholder="現在のパスワード" />
+    </div>
+    <div class="form-group">
+      <label>新しいパスワード:</label>
+      <input type="password" id="finance_new_password" placeholder="新しいパスワード" />
+    </div>
+    <div class="form-group">
+      <label>確認:</label>
+      <input type="password" id="finance_confirm_password" placeholder="新しいパスワード（確認）" />
+    </div>
+    <div class="form-group">
+      <button id="change_finance_password" class="btn-primary">財務パスワード変更</button>
+    </div>
+  </div>
+  
+  <div class="admin-card">
+    <h2>役員パスワード変更</h2>
+    <div class="form-group">
+      <label>現在のパスワード:</label>
+      <input type="password" id="officer_current_password" placeholder="現在のパスワード" />
+    </div>
+    <div class="form-group">
+      <label>新しいパスワード:</label>
+      <input type="password" id="officer_new_password" placeholder="新しいパスワード" />
+    </div>
+    <div class="form-group">
+      <label>確認:</label>
+      <input type="password" id="officer_confirm_password" placeholder="新しいパスワード（確認）" />
+    </div>
+    <div class="form-group">
+      <button id="change_officer_password" class="btn-primary">役員パスワード変更</button>
+    </div>
+  </div>
+</div>
 <script>
 async function load(){
+try {
 const d = await (await fetch('/api/masters/departments')).json();
 const m = await (await fetch('/api/masters/members')).json();
-document.getElementById('deps').innerHTML = d.ok? d.data.map(x=>`${x.id}: ${x.name} <button onclick="deleteDepartment(${x.id}, '${x.name}')">削除</button>`).join('<br/>'):'error';
-document.getElementById('members').innerHTML = m.ok? m.data.map(x=>`${x.id}: ${x.name} (${x.department_name}) <button onclick="deleteMember(${x.id}, '${x.name}')">削除</button>`).join('<br/>'):'error';
+const e = await (await fetch('/api/masters/events')).json();
+
+document.getElementById('deps').innerHTML = d.ok? d.data.map(x=>`<div class="master-item"><button onclick="deleteDepartment(${x.id}, '${x.name}')" class="btn-danger">削除</button><span>${x.id}: ${x.name}</span></div>`).join(''):`エラー: ${d.message || '部署データの取得に失敗'}`;
+document.getElementById('members').innerHTML = m.ok? m.data.map(x=>`<div class="master-item"><button onclick="deleteMember(${x.id}, '${x.name}')" class="btn-danger">削除</button><span>${x.id}: ${x.name} (${x.department_name})</span></div>`).join(''):`エラー: ${m.message || '役員データの取得に失敗'}`;
+document.getElementById('events').innerHTML = e.ok? e.data.map(x=>`<div class="master-item"><button onclick="deleteEvent(${x.id}, '${x.name}')" class="btn-danger">削除</button><span>${x.id}: ${x.name}</span></div>`).join(''):`エラー: ${e.message || '行事データの取得に失敗'}`;
 
 // 部署選択肢を更新
 if(d.ok) {
 const depSelect = document.getElementById('member_department');
 depSelect.innerHTML = '<option value="">部署を選択</option>' + d.data.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+}
+} catch(error) {
+console.error('データ読み込みエラー:', error);
+document.getElementById('deps').innerHTML = 'エラー: データの取得に失敗しました';
+document.getElementById('members').innerHTML = 'エラー: データの取得に失敗しました';
+document.getElementById('events').innerHTML = 'エラー: データの取得に失敗しました';
 }
 }
 
@@ -60,8 +178,9 @@ r.data.map(x=>`<div style="border:1px solid #ccc; margin:5px; padding:10px;">
 <option value="CASH_GIVEN" ${x.state === 'CASH_GIVEN' ? 'selected' : ''}>渡し済み</option>
 <option value="COLLECTED" ${x.state === 'COLLECTED' ? 'selected' : ''}>回収済み</option>
 <option value="RECEIPT_DONE" ${x.state === 'RECEIPT_DONE' ? 'selected' : ''}>処理完了</option>
+<option value="FINALIZED" ${x.state === 'FINALIZED' ? 'selected' : ''}>記入完了</option>
 <option value="REJECTED" ${x.state === 'REJECTED' ? 'selected' : ''}>却下</option>
-</select><br/>
+</select>${x.state === 'REJECTED' && x.rejected_reason ? '<br/><small style="color: #666;">却下理由: ' + x.rejected_reason + '</small>' : ''}<br/>
 渡し額: <input type="number" id="cash_${x.id}" value="${x.cash_given || ''}" style="width:100px;" step="0.01" min="0" /> 
 <button onclick="updateCashAmount(${x.id})">更新</button><br/>
 処理済み額: <span id="admin_processed_amount_${x.id}">¥0</span><br/>
@@ -76,6 +195,8 @@ loadAdminProcessedAmount(request.id);
 }
 load();
 loadRequests();
+loadBackups();
+setDefaultBackupDates();
 
 
 document.getElementById('dep_add').onclick = async ()=>{
@@ -102,7 +223,475 @@ document.getElementById('member_department').value = '';
 load();
 };
 
+document.getElementById('event_add').onclick = async ()=>{
+const name = document.getElementById('event_name').value.trim();
+if(!name) return alert('行事名を入力してください');
+try {
+const r = await fetch('/api/masters/event', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({name})
+});
+const j = await r.json();
+if(!j.ok) {
+alert(`行事の追加に失敗しました: ${j.message}`);
+return;
+}
+document.getElementById('event_name').value = '';
+load();
+} catch(error) {
+console.error('行事追加エラー:', error);
+alert('行事の追加中にエラーが発生しました。ネットワーク接続を確認してください。');
+}
+};
+
 document.getElementById('reload_requests').onclick = loadRequests;
+
+document.getElementById('create_backup_from_list').onclick = async ()=>{
+try {
+const response = await fetch('/api/backups', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({type: 'full'})
+});
+const result = await response.json();
+if(result.ok) {
+alert(`バックアップが作成されました:\nファイル: ${result.data.filename}\nサイズ: ${(result.data.size / 1024 / 1024).toFixed(2)} MB`);
+loadBackups();
+} else {
+alert('バックアップの作成に失敗しました: ' + result.message);
+}
+} catch(error) {
+console.error('バックアップ作成エラー:', error);
+alert('バックアップ作成中にエラーが発生しました。');
+}
+};
+
+// 購入希望リストクリア
+document.getElementById('clear_requests').onclick = async ()=>{
+if(!confirm('購入希望リストをすべて削除しますか？この操作は元に戻せません。')) return;
+
+try {
+// まず現在のリクエスト数を確認
+const requestsResponse = await fetch('/api/requests');
+const requestsResult = await requestsResponse.json();
+if(!requestsResult.ok || !requestsResult.data || requestsResult.data.length === 0) {
+alert('削除する購入希望リストがありません。');
+return;
+}
+
+const requestCount = requestsResult.data.length;
+if(!confirm(`現在${requestCount}件の購入希望リストがあります。\n削除前に自動バックアップを作成します。続行しますか？`)) return;
+
+// 自動バックアップを作成
+console.log('購入希望リストクリア前の自動バックアップを作成中...');
+const backupResponse = await fetch('/api/backups', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({type: 'full'})
+});
+const backupResult = await backupResponse.json();
+
+if(!backupResult.ok) {
+alert('自動バックアップの作成に失敗しました。\nエラー: ' + backupResult.message + '\n\n安全のため、削除を中止します。');
+return;
+}
+
+console.log('自動バックアップ作成完了:', backupResult.data.filename);
+
+// バックアップ作成完了を通知
+if(!confirm(`自動バックアップが作成されました。\nファイル: ${backupResult.data.filename}\n\n購入希望リストを削除しますか？`)) return;
+
+// 購入希望リストを削除
+let deletedCount = 0;
+let errorCount = 0;
+
+for(const request of requestsResult.data) {
+try {
+const deleteResponse = await fetch(`/api/requests/${request.id}`, {
+method: 'DELETE'
+});
+if(deleteResponse.ok) {
+deletedCount++;
+} else {
+errorCount++;
+console.error(`Failed to delete request ${request.id}:`, await deleteResponse.text());
+}
+} catch(error) {
+errorCount++;
+console.error(`Error deleting request ${request.id}:`, error);
+}
+}
+
+// 結果を通知
+let message = `購入希望リストの削除が完了しました。\n削除件数: ${deletedCount}件`;
+if(errorCount > 0) {
+message += `\nエラー件数: ${errorCount}件`;
+}
+message += `\n\n自動バックアップファイル: ${backupResult.data.filename}`;
+
+alert(message);
+
+// データを再読み込み
+loadRequests();
+loadBackups();
+
+} catch(error) {
+console.error('購入希望リストクリアエラー:', error);
+alert('購入希望リストクリア中にエラーが発生しました: ' + error.message);
+}
+};
+
+
+// 部署マスタクリア
+document.getElementById('clear_departments').onclick = async ()=>{
+if(!confirm('部署マスタをすべて削除しますか？この操作は元に戻せません。')) return;
+try {
+// 部署に関連する役員がいるかチェック
+const membersResponse = await fetch('/api/masters/members');
+const membersResult = await membersResponse.json();
+if(membersResult.ok && membersResult.data.length > 0) {
+if(!confirm('部署に関連する役員が存在します。役員も一緒に削除されますが、よろしいですか？')) return;
+}
+
+// 部署を削除（関連する役員も自動削除される）
+const depsResponse = await fetch('/api/masters/departments');
+const depsResult = await depsResponse.json();
+if(depsResult.ok) {
+for(const dep of depsResult.data) {
+await fetch('/api/masters/department', {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({id: dep.id})
+});
+}
+}
+alert('部署マスタをクリアしました。');
+load(); // データを再読み込み
+} catch(error) {
+console.error('部署マスタクリアエラー:', error);
+alert('部署マスタクリア中にエラーが発生しました。');
+}
+};
+
+// 役員マスタクリア
+document.getElementById('clear_members').onclick = async ()=>{
+if(!confirm('役員マスタをすべて削除しますか？この操作は元に戻せません。')) return;
+try {
+const response = await fetch('/api/masters/members');
+const result = await response.json();
+if(result.ok) {
+for(const member of result.data) {
+await fetch('/api/masters/member', {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({id: member.id})
+});
+}
+}
+alert('役員マスタをクリアしました。');
+load(); // データを再読み込み
+} catch(error) {
+console.error('役員マスタクリアエラー:', error);
+alert('役員マスタクリア中にエラーが発生しました。');
+}
+};
+
+// バックアップ管理機能
+document.getElementById('create_backup').onclick = async ()=>{
+try {
+const response = await fetch('/api/backups', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({type: 'full'})
+});
+const result = await response.json();
+if(result.ok) {
+alert(`バックアップが作成されました:\nファイル: ${result.data.filename}\nサイズ: ${(result.data.size / 1024 / 1024).toFixed(2)} MB`);
+loadBackups();
+} else {
+alert('バックアップの作成に失敗しました: ' + result.message);
+}
+} catch(error) {
+console.error('バックアップ作成エラー:', error);
+alert('バックアップ作成中にエラーが発生しました。');
+}
+};
+
+document.getElementById('search_backups').onclick = async ()=>{
+const startDate = document.getElementById('backup_start_date').value;
+const endDate = document.getElementById('backup_end_date').value;
+if(!startDate || !endDate) {
+alert('開始日と終了日を選択してください。');
+return;
+}
+loadBackups(startDate, endDate);
+};
+
+// パスワード変更機能
+document.getElementById('change_admin_password').onclick = async ()=>{
+const currentPassword = document.getElementById('admin_current_password').value;
+const newPassword = document.getElementById('admin_new_password').value;
+const confirmPassword = document.getElementById('admin_confirm_password').value;
+
+if(!currentPassword || !newPassword || !confirmPassword) {
+alert('すべてのフィールドを入力してください。');
+return;
+}
+
+if(newPassword !== confirmPassword) {
+alert('新しいパスワードと確認パスワードが一致しません。');
+return;
+}
+
+if(newPassword.length < 6) {
+alert('新しいパスワードは6文字以上で入力してください。');
+return;
+}
+
+try {
+const response = await fetch('/api/auth/change_password', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({
+role: 'ADMIN',
+current_password: currentPassword,
+new_password: newPassword
+})
+});
+const result = await response.json();
+if(result.ok) {
+alert('管理者パスワードが変更されました。');
+// フォームをクリア
+document.getElementById('admin_current_password').value = '';
+document.getElementById('admin_new_password').value = '';
+document.getElementById('admin_confirm_password').value = '';
+} else {
+alert('パスワード変更に失敗しました: ' + result.message);
+}
+} catch(error) {
+console.error('パスワード変更エラー:', error);
+alert('パスワード変更中にエラーが発生しました。');
+}
+};
+
+document.getElementById('change_finance_password').onclick = async ()=>{
+const currentPassword = document.getElementById('finance_current_password').value;
+const newPassword = document.getElementById('finance_new_password').value;
+const confirmPassword = document.getElementById('finance_confirm_password').value;
+
+if(!currentPassword || !newPassword || !confirmPassword) {
+alert('すべてのフィールドを入力してください。');
+return;
+}
+
+if(newPassword !== confirmPassword) {
+alert('新しいパスワードと確認パスワードが一致しません。');
+return;
+}
+
+if(newPassword.length < 6) {
+alert('新しいパスワードは6文字以上で入力してください。');
+return;
+}
+
+try {
+const response = await fetch('/api/auth/change_password', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({
+role: 'FINANCE',
+current_password: currentPassword,
+new_password: newPassword
+})
+});
+const result = await response.json();
+if(result.ok) {
+alert('財務パスワードが変更されました。');
+// フォームをクリア
+document.getElementById('finance_current_password').value = '';
+document.getElementById('finance_new_password').value = '';
+document.getElementById('finance_confirm_password').value = '';
+} else {
+alert('パスワード変更に失敗しました: ' + result.message);
+}
+} catch(error) {
+console.error('パスワード変更エラー:', error);
+alert('パスワード変更中にエラーが発生しました。');
+}
+};
+
+document.getElementById('change_officer_password').onclick = async ()=>{
+const currentPassword = document.getElementById('officer_current_password').value;
+const newPassword = document.getElementById('officer_new_password').value;
+const confirmPassword = document.getElementById('officer_confirm_password').value;
+
+if(!currentPassword || !newPassword || !confirmPassword) {
+alert('すべてのフィールドを入力してください。');
+return;
+}
+
+if(newPassword !== confirmPassword) {
+alert('新しいパスワードと確認パスワードが一致しません。');
+return;
+}
+
+if(newPassword.length < 6) {
+alert('新しいパスワードは6文字以上で入力してください。');
+return;
+}
+
+try {
+const response = await fetch('/api/auth/change_password', {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({
+role: 'OFFICER',
+current_password: currentPassword,
+new_password: newPassword
+})
+});
+const result = await response.json();
+if(result.ok) {
+alert('役員パスワードが変更されました。');
+// フォームをクリア
+document.getElementById('officer_current_password').value = '';
+document.getElementById('officer_new_password').value = '';
+document.getElementById('officer_confirm_password').value = '';
+} else {
+alert('パスワード変更に失敗しました: ' + result.message);
+}
+} catch(error) {
+console.error('パスワード変更エラー:', error);
+alert('パスワード変更中にエラーが発生しました。');
+}
+};
+
+async function loadBackups(startDate = null, endDate = null) {
+try {
+let url = '/api/backups';
+if(startDate && endDate) {
+url = `/api/backups/period?start_date=${startDate}&end_date=${endDate}`;
+}
+const response = await fetch(url);
+const result = await response.json();
+if(result.ok) {
+displayBackups(result.data);
+} else {
+document.getElementById('backup_list').innerHTML = 'エラー: ' + result.message;
+}
+} catch(error) {
+console.error('バックアップ読み込みエラー:', error);
+document.getElementById('backup_list').innerHTML = 'エラー: バックアップの読み込みに失敗しました';
+}
+}
+
+function displayBackups(backups) {
+if(backups.length === 0) {
+document.getElementById('backup_list').innerHTML = '<p>バックアップファイルが見つかりません。</p>';
+return;
+}
+
+let html = '<div class="backup-list">';
+backups.forEach(backup => {
+const sizeMB = (backup.size / 1024 / 1024).toFixed(2);
+const typeLabel = backup.type === 'full' ? '完全' : (backup.type === 'data' ? 'データ' : 'スキーマ');
+html += `
+<div class="backup-item">
+<div class="backup-info">
+<strong>${backup.filename}</strong><br/>
+種類: ${typeLabel} | サイズ: ${sizeMB} MB | 作成日: ${backup.created_at}
+</div>
+<div class="backup-actions">
+<button onclick="downloadBackup('${backup.filename}')" class="btn-secondary">ダウンロード</button>
+<button onclick="deleteBackup('${backup.filename}')" class="btn-danger">削除</button>
+</div>
+</div>
+`;
+});
+html += '</div>';
+document.getElementById('backup_list').innerHTML = html;
+}
+
+async function downloadBackup(filename) {
+// ファイル名の検証
+if(!filename || typeof filename !== 'string') {
+alert('無効なファイル名です。');
+return;
+}
+
+console.log('Downloading backup file:', filename);
+
+try {
+const url = `/api/backups/download?file=${encodeURIComponent(filename)}`;
+console.log('Download URL:', url);
+window.open(url, '_blank');
+} catch(error) {
+console.error('ダウンロードエラー:', error);
+alert('ダウンロード中にエラーが発生しました: ' + error.message);
+}
+}
+
+async function deleteBackup(filename) {
+if(!confirm(`バックアップファイル「${filename}」を削除しますか？`)) return;
+
+// ファイル名の検証
+if(!filename || typeof filename !== 'string') {
+alert('無効なファイル名です。');
+return;
+}
+
+console.log('Deleting backup file:', filename);
+
+const deleteUrl = `/api/backups?filename=${encodeURIComponent(filename)}`;
+console.log('Delete URL:', deleteUrl);
+
+try {
+const response = await fetch(deleteUrl, {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'}
+});
+
+console.log('Delete response status:', response.status);
+console.log('Delete response headers:', response.headers);
+
+if (!response.ok) {
+throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+}
+
+const result = await response.json();
+console.log('Delete response:', result);
+
+if(result.ok) {
+alert('バックアップファイルを削除しました。');
+loadBackups();
+} else {
+alert('削除に失敗しました: ' + result.message);
+console.error('Delete failed:', result);
+}
+} catch(error) {
+console.error('削除エラー:', error);
+alert('削除中にエラーが発生しました: ' + error.message);
+}
+}
+
+function setDefaultBackupDates() {
+const today = new Date();
+const oneMonthAgo = new Date();
+oneMonthAgo.setMonth(today.getMonth() - 1);
+
+// 日付をYYYY-MM-DD形式に変換
+const formatDate = (date) => {
+const year = date.getFullYear();
+const month = String(date.getMonth() + 1).padStart(2, '0');
+const day = String(date.getDate()).padStart(2, '0');
+return `${year}-${month}-${day}`;
+};
+
+// デフォルト値を設定
+document.getElementById('backup_start_date').value = formatDate(oneMonthAgo);
+document.getElementById('backup_end_date').value = formatDate(today);
+}
 
 // エクセル一括登録
 document.getElementById('bulk_upload').onclick = async () => {
@@ -229,14 +818,14 @@ loadRequests();
 }
 
 async function deleteRequest(id, requestNo) {
-if(!confirm(`リクエスト「${requestNo}」を削除しますか？\n\n注意: このリクエストに関連するレシートやアイテムが存在する場合は削除できません。`)) return;
+if(!confirm(`リクエスト「${requestNo}」を削除しますか？\n\n注意: このリクエストに関連するレシート画像やExcelファイルも含めて全て削除されます。`)) return;
 const r = await fetch(`/api/requests/${id}`, {
 method: 'DELETE',
 headers: {'Content-Type': 'application/json'}
 });
 const j = await r.json();
 if(!j.ok) return alert(j.message);
-alert('リクエストを削除しました');
+alert('リクエストと関連ファイルを削除しました');
 loadRequests();
 }
 
@@ -257,33 +846,46 @@ return;
 }
 
 let modalContent = `
-<div id="adminReceiptModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;">
-<div style="background:white; padding:20px; border-radius:5px; max-width:600px; max-height:80%; overflow-y:auto;">
+<div id="adminReceiptModal" class="modal-overlay show">
+<div class="modal-content" style="max-width:600px; max-height:80%; overflow-y:auto;">
 <h3>レシート一覧</h3>
 <div style="margin-bottom:15px;">
 `;
 
 receipts.forEach(receipt => {
 modalContent += `
-<div style="border:1px solid #ccc; margin:5px 0; padding:10px;">
+<div class="receipt-item">
+<div class="receipt-actions">
+<button onclick="deleteAdminReceipt(${requestId}, ${receipt.id})" class="btn-danger">削除</button>
+<button onclick="viewReceiptImage('${receipt.file_path}')" class="btn-secondary">表示</button>
+</div>
+<div class="receipt-info">
 <strong>種類:</strong> ${receipt.kind || '未設定'}<br/>
 <strong>金額:</strong> ¥${Number(receipt.total).toLocaleString()}<br/>
 <strong>日時:</strong> ${receipt.taken_at || '未設定'}<br/>
 <strong>メモ:</strong> ${receipt.memo || 'なし'}<br/>
-<button onclick="viewReceiptImage('${receipt.file_path}')" style="margin:5px;">表示</button>
-<button onclick="deleteAdminReceipt(${requestId}, ${receipt.id})" style="margin:5px; background:#ff4444; color:white;">削除</button>
+</div>
 </div>
 `;
 });
 
 modalContent += `
 </div>
-<button onclick="closeAdminReceiptModal()" style="background:#666; color:white; padding:10px 20px;">閉じる</button>
+<div class="modal-buttons">
+<button onclick="closeAdminReceiptModal()" class="btn-secondary">閉じる</button>
+</div>
 </div>
 </div>
 `;
 
 document.body.insertAdjacentHTML('beforeend', modalContent);
+// モーダルが確実に表示されるように少し待つ
+setTimeout(() => {
+  const modal = document.getElementById('adminReceiptModal');
+  if (modal) {
+    modal.classList.add('show');
+  }
+}, 10);
 } catch(e) {
 console.error('Receipt list error:', e);
 alert('エラーが発生しました');
@@ -327,5 +929,53 @@ if(modal) {
 modal.remove();
 }
 }
+
+// テーマに応じてロゴを切り替える関数
+function updateBannerLogo() {
+    const logo = document.getElementById('banner-logo');
+    const isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (isDarkTheme) {
+        logo.src = '../assets/logo-wh.png'; // ダークテーマ時は白いロゴ
+    } else {
+        logo.src = '../assets/logo-bl.png'; // ライトテーマ時は黒いロゴ
+    }
+}
+
+// ログアウト機能
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        location.href = '/pages/login.html';
+    } catch (e) {
+        console.error('Logout failed:', e);
+        location.href = '/pages/login.html';
+    }
+}
+
+// ページ読み込み時にロゴを設定
+document.addEventListener('DOMContentLoaded', updateBannerLogo);
+
+// テーマ変更を監視
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateBannerLogo);
+
+function deleteEvent(id, name) {
+if(!confirm(`行事「${name}」を削除しますか？`)) return;
+fetch('/api/masters/event', {
+method: 'DELETE',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({id})
+}).then(r=>r.json()).then(j=>{
+if(!j.ok) return alert(j.message);
+load();
+});
+}
 </script>
+
+<footer class="page-footer">
+    <div class="footer-content">
+        <img src="../assets/RyoyuLogo.png" alt="寮友会ロゴ" class="footer-logo">
+        <div class="footer-text">© 千葉工業大学寮友会執行役員会 / 財務管理システム - Lotus</div>
+    </div>
+</footer>
 </body></html>

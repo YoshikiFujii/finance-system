@@ -24,7 +24,7 @@ summary VARCHAR(255) NOT NULL,
 expects_network ENUM('NONE','CONVENIENCE','BANK_TRANSFER') NOT NULL DEFAULT 'NONE',
 state ENUM(
 'NEW','ACCEPTED','REJECTED',
-'CASH_GIVEN','COLLECTED','RECEIPT_DONE'
+'CASH_GIVEN','COLLECTED','RECEIPT_DONE','TRANSFERRED'
 ) NOT NULL DEFAULT 'NEW',
 expected_total DECIMAL(12,2) DEFAULT NULL,
 cash_given DECIMAL(12,2) DEFAULT NULL,
@@ -78,9 +78,35 @@ pass_hash VARCHAR(255) NOT NULL,
 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- 行事マスタテーブル
+CREATE TABLE IF NOT EXISTS events (
+id BIGINT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(100) NOT NULL,
+is_active TINYINT(1) NOT NULL DEFAULT 1,
+created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- レシートテーブルに新しいフィールドを追加
+ALTER TABLE receipts 
+ADD COLUMN event_id BIGINT DEFAULT NULL,
+ADD COLUMN subject VARCHAR(255) DEFAULT NULL,
+ADD COLUMN purpose ENUM('備品購入','運営用品購入','景品購入','広報物作成','朝・昼・夜食購入','その他') DEFAULT NULL,
+ADD COLUMN payer VARCHAR(100) DEFAULT NULL,
+ADD COLUMN receipt_date DATE DEFAULT NULL,
+ADD FOREIGN KEY (event_id) REFERENCES events(id);
+
+-- リクエストテーブルに振込口座情報を追加
+ALTER TABLE requests 
+ADD COLUMN bank_name VARCHAR(100) DEFAULT NULL,
+ADD COLUMN branch_name VARCHAR(100) DEFAULT NULL,
+ADD COLUMN account_type VARCHAR(20) DEFAULT NULL,
+ADD COLUMN account_number VARCHAR(20) DEFAULT NULL,
+ADD COLUMN account_holder VARCHAR(100) DEFAULT NULL;
+
 
 INSERT INTO departments(name) VALUES ('総務'),('財務'),('広報');
 INSERT INTO members(name, department_id) VALUES ('山田太郎',1),('佐藤花子',2),('鈴木一郎',3);
+INSERT INTO events(name) VALUES ('定期総会'),('文化祭'),('体育祭'),('卒業式'),('入学式');
 # 初期パスワード（例）: 役員/officer123, 財務/finance123, 管理/admin123
 # 生成例: PHPのpassword_hashで生成し、以下に貼る
 INSERT INTO passwords(role, pass_hash) VALUES

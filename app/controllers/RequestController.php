@@ -13,7 +13,24 @@ class RequestController{
     $department_id = (int)($_POST['department_id'] ?? 0);
     $summary = trim((string)($_POST['summary'] ?? ''));
     $expects = (string)($_POST['expects_network'] ?? 'NONE');
+    
+    // 振込口座情報
+    $bank_name = trim((string)($_POST['bank_name'] ?? ''));
+    $branch_name = trim((string)($_POST['branch_name'] ?? ''));
+    $account_type = trim((string)($_POST['account_type'] ?? ''));
+    $account_number = trim((string)($_POST['account_number'] ?? ''));
+    $account_holder = trim((string)($_POST['account_holder'] ?? ''));
+    
     if(!$member_id||!$department_id||$summary==='') return json_ng('missing fields');
+    
+    // 振込選択時は振込口座情報が必須
+    if($expects === 'BANK_TRANSFER') {
+        error_log("Bank transfer validation - bank_name: '$bank_name', branch_name: '$branch_name', account_type: '$account_type', account_number: '$account_number', account_holder: '$account_holder'");
+        if(!$bank_name || !$branch_name || !$account_type || !$account_number || !$account_holder) {
+            error_log("Bank transfer validation failed - missing required fields");
+            return json_ng('振込を選択した場合は、振込口座情報をすべて入力してください');
+        }
+    }
     if(!isset($_FILES['excel']) || $_FILES['excel']['error']!==UPLOAD_ERR_OK) return json_ng('excel required');
     // 保存先（受付番号を簡略化）
     $no = date('ymd').sprintf('%03d', random_int(1,999));
@@ -49,8 +66,15 @@ class RequestController{
     }
 
 
-    $st = db()->prepare('INSERT INTO requests(request_no,member_id,department_id,submitted_at,summary,expects_network,excel_path) VALUES (?,?,?,?,?,?,?)');
-    $st->execute([$no,$member_id,$department_id,date('Y-m-d H:i:s'),$summary,$expects,$path]);
+    error_log("Inserting request with bank info - expects: '$expects', bank_name: '$bank_name', branch_name: '$branch_name', account_type: '$account_type', account_number: '$account_number', account_holder: '$account_holder'");
+    $st = db()->prepare('INSERT INTO requests(request_no,member_id,department_id,submitted_at,summary,expects_network,excel_path,bank_name,branch_name,account_type,account_number,account_holder) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
+    try {
+        $st->execute([$no,$member_id,$department_id,date('Y-m-d H:i:s'),$summary,$expects,$path,$bank_name ?: null,$branch_name ?: null,$account_type ?: null,$account_number ?: null,$account_holder ?: null]);
+        error_log("Request inserted successfully");
+    } catch (Exception $e) {
+        error_log("Database insert error: " . $e->getMessage());
+        return json_ng('データベースエラー: ' . $e->getMessage());
+    }
 
 
     db()->prepare('INSERT INTO audit_logs(request_id,actor,action,detail) VALUES (LAST_INSERT_ID(),?,?,?)')
@@ -59,16 +83,36 @@ class RequestController{
 }
 
 
-static function list(){ // 財務/管理者向けリスト
-require_role(['FINANCE','ADMIN']);
+static function list(){ // 財務/管理者/役員向けリスト
+$cur = current_role();
+if(!$cur || !in_array($cur,['FINANCE','ADMIN','OFFICER'],true)){
+    return json_ng('unauthorized', 401);
+}
 $q = $_GET['q'] ?? '';
 $state = $_GET['state'] ?? '';
 $dep = $_GET['dept'] ?? '';
+$member_id = $_GET['member_id'] ?? '';
+$department_id = $_GET['department_id'] ?? '';
 $where = [];$args=[];
 if($q!=''){ $where[]='(r.summary LIKE ? OR m.name LIKE ?)'; $args[]="%$q%"; $args[]="%$q%"; }
-if($state!=''){ $where[]='r.state=?'; $args[]=$state; }
+if($state!=''){
+    // カンマ区切りで複数の状態を指定可能
+    if(strpos($state, ',') !== false) {
+        $states = explode(',', $state);
+        $placeholders = str_repeat('?,', count($states) - 1) . '?';
+        $where[] = "r.state IN ($placeholders)";
+        foreach($states as $s) {
+            $args[] = trim($s);
+        }
+    } else {
+        $where[]='r.state=?'; 
+        $args[]=$state;
+    }
+}
 if($dep!=''){ $where[]='r.department_id=?'; $args[]=(int)$dep; }
-$sql = 'SELECT r.id,r.request_no,r.submitted_at,r.summary,r.expects_network,r.state,r.cash_given,r.expected_total, m.name AS member_name, d.name AS dept_name
+if($member_id!=''){ $where[]='r.member_id=?'; $args[]=(int)$member_id; }
+if($department_id!=''){ $where[]='r.department_id=?'; $args[]=(int)$department_id; }
+$sql = 'SELECT r.id,r.request_no,r.submitted_at,r.summary,r.expects_network,r.state,r.cash_given,r.expected_total,r.rejected_reason,r.bank_name,r.branch_name,r.account_type,r.account_number,r.account_holder, m.name AS member_name, d.name AS dept_name
 FROM requests r JOIN members m ON m.id=r.member_id JOIN departments d ON d.id=r.department_id';
 if($where) $sql .= ' WHERE '.implode(' AND ', $where);
 $sql .= ' ORDER BY r.submitted_at DESC LIMIT 200';
@@ -104,7 +148,7 @@ return json_ok();
 static function state($id){ require_role(['FINANCE','ADMIN']);
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
 $next = (string)($in['next_state'] ?? '');
-$valid_states = ['NEW','ACCEPTED','REJECTED','CASH_GIVEN','COLLECTED','RECEIPT_DONE'];
+$valid_states = ['NEW','ACCEPTED','REJECTED','CASH_GIVEN','COLLECTED','RECEIPT_DONE','TRANSFERRED','FINALIZED'];
 if(!in_array($next, $valid_states, true)) return json_ng('invalid state',400);
 
 // 管理者の場合は状態遷移制限を無視
@@ -125,20 +169,36 @@ $cur = db()->prepare('SELECT state, expects_network FROM requests WHERE id=?');
 $cur->execute([$id]); $row=$cur->fetch(); if(!$row) return false;
 $state=$row['state']; $net=$row['expects_network'];
 $flows = [
-'NONE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE' ],
-'CONVENIENCE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE' ],
-'BANK_TRANSFER' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE' ]
+'NONE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE','RECEIPT_DONE=>FINALIZED' ],
+'CONVENIENCE' => [ 'NEW=>ACCEPTED','ACCEPTED=>CASH_GIVEN','CASH_GIVEN=>COLLECTED','COLLECTED=>RECEIPT_DONE','RECEIPT_DONE=>FINALIZED' ],
+'BANK_TRANSFER' => [ 'NEW=>ACCEPTED','ACCEPTED=>TRANSFERRED','TRANSFERRED=>COLLECTED','COLLECTED=>RECEIPT_DONE','RECEIPT_DONE=>FINALIZED' ]
 ];
 return in_array("$state=>$next", $flows[$net] ?? [], true);
 }
 
 
 static function upload_receipt($id){ require_role(['FINANCE','ADMIN']);
-if(!isset($_FILES['file']) || $_FILES['file']['error']!==UPLOAD_ERR_OK) return json_ng('file required');
+
+// デバッグログ追加
+error_log("Upload receipt debug - ID: $id");
+error_log("Upload receipt debug - FILES: " . print_r($_FILES, true));
+error_log("Upload receipt debug - POST: " . print_r($_POST, true));
+
+if(!isset($_FILES['file']) || $_FILES['file']['error']!==UPLOAD_ERR_OK) {
+    error_log("Upload receipt debug - File error: " . ($_FILES['file']['error'] ?? 'no file'));
+    return json_ng('file required');
+}
+
 $total = (float)($_POST['total'] ?? 0);
 $change = (float)($_POST['change_returned'] ?? 0);
-$kind = (string)($_POST['kind'] ?? 'RECEIPT');
-$taken_at = (string)($_POST['taken_at'] ?? date('Y-m-d H:i:s'));
+  $event_id = (int)($_POST['event_id'] ?? 0);
+  $subject = trim((string)($_POST['subject'] ?? ''));
+  $purpose = (string)($_POST['purpose'] ?? '');
+  $payer = trim((string)($_POST['payer'] ?? ''));
+  $receipt_date = (string)($_POST['receipt_date'] ?? date('Y-m-d'));
+
+error_log("Upload receipt debug - Total: $total, Change: $change, Event ID: $event_id, Subject: $subject, Purpose: $purpose, Payer: $payer, Receipt Date: $receipt_date");
+
 if($total<=0) return json_ng('total required');
 
 
@@ -150,16 +210,47 @@ ensure_dir($basedir);
 
 
 $f=$_FILES['file']; $ext=strtolower(pathinfo($f['name'],PATHINFO_EXTENSION));
-$allowed=['jpg','jpeg','png','pdf']; if(!in_array($ext,$allowed,true)) return json_ng('invalid file type');
-if($f['size']>10*1024*1024) return json_ng('file too large');
+
+error_log("Upload receipt debug - File name: " . $f['name']);
+error_log("Upload receipt debug - File extension: " . $ext);
+error_log("Upload receipt debug - File size: " . $f['size']);
+error_log("Upload receipt debug - Upload dir: " . $basedir);
+
+$allowed=['jpg','jpeg','png','pdf']; 
+if(!in_array($ext,$allowed,true)) {
+    error_log("Upload receipt debug - Invalid file type: " . $ext);
+    return json_ng('invalid file type');
+}
+
+if($f['size']>10*1024*1024) {
+    error_log("Upload receipt debug - File too large: " . $f['size']);
+    return json_ng('file too large');
+}
+
 $fname=$f['name'];
-$path=$basedir.'/'.$fname; move_uploaded_file($f['tmp_name'],$path);
+$path=$basedir.'/'.$fname; 
+
+error_log("Upload receipt debug - Target path: " . $path);
+
+if(!move_uploaded_file($f['tmp_name'],$path)) {
+    error_log("Upload receipt debug - Failed to move uploaded file");
+    return json_ng('failed to save file');
+}
+
+error_log("Upload receipt debug - File saved successfully");
 
 
-$ins=db()->prepare('INSERT INTO receipts(request_id,kind,total,change_returned,file_path,taken_at) VALUES (?,?,?,?,?,?)');
-$ins->execute([$id,$kind,$total,$change,$path,$taken_at]);
+  $ins=db()->prepare('INSERT INTO receipts(request_id,kind,total,change_returned,file_path,taken_at,event_id,subject,purpose,payer,receipt_date) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+  
+  error_log("Upload receipt debug - About to insert into database");
+  error_log("Upload receipt debug - Insert values: ID=$id, Total=$total, Change=$change, Path=$path, Event ID=$event_id, Subject=$subject, Purpose=$purpose, Payer=$payer, Receipt Date=$receipt_date");
+  
+  if(!$ins->execute([$id,'RECEIPT',$total,$change,$path,date('Y-m-d H:i:s'),$event_id ?: null,$subject ?: null,$purpose ?: null,$payer ?: null,$receipt_date])) {
+      error_log("Upload receipt debug - Database insert failed: " . print_r($ins->errorInfo(), true));
+      return json_ng('database error');
+  }
 
-
+error_log("Upload receipt debug - Database insert successful");
 return json_ok();
 }
 
@@ -254,10 +345,48 @@ static function view_receipt_image(){ require_role(['FINANCE','ADMIN']);
 }
 
 static function get_receipts($id){ require_role(['FINANCE','ADMIN']);
-    $st = db()->prepare('SELECT id, kind, total, change_returned, file_path, taken_at, memo FROM receipts WHERE request_id = ? ORDER BY taken_at DESC');
+    $st = db()->prepare('
+        SELECT r.id, r.kind, r.total, r.change_returned, r.file_path, r.taken_at, r.memo,
+               r.event_id, r.subject, r.purpose, r.payer, r.receipt_date, r.is_completed,
+               e.name as event_name
+        FROM receipts r
+        LEFT JOIN events e ON r.event_id = e.id
+        WHERE r.request_id = ? 
+        ORDER BY r.taken_at DESC
+    ');
     $st->execute([$id]);
     $receipts = $st->fetchAll();
     return json_ok($receipts);
+}
+
+static function update_receipt_status($id){ require_role(['FINANCE','ADMIN']);
+    $in = json_decode(file_get_contents('php://input'), true) ?: [];
+    $receipt_id = (int)($in['receipt_id'] ?? 0);
+    $is_completed = (int)($in['is_completed'] ?? 0);
+    
+    if($receipt_id <= 0) return json_ng('invalid receipt id', 400);
+    
+    // レシートの存在確認
+    $st = db()->prepare('SELECT id FROM receipts WHERE id = ? AND request_id = ?');
+    $st->execute([$receipt_id, $id]);
+    if(!$st->fetch()) return json_ng('receipt not found', 404);
+    
+    // レシートの記入状態を更新
+    $update = db()->prepare('UPDATE receipts SET is_completed = ? WHERE id = ?');
+    $update->execute([$is_completed, $receipt_id]);
+    
+    // 全てのレシートが記入済みかチェック
+    $check = db()->prepare('SELECT COUNT(*) as total, SUM(is_completed) as completed FROM receipts WHERE request_id = ?');
+    $check->execute([$id]);
+    $result = $check->fetch();
+    
+    // 全てのレシートが記入済みの場合、リクエストの状態を記入完了に変更
+    if($result['total'] > 0 && $result['total'] == $result['completed']) {
+        $state_update = db()->prepare('UPDATE requests SET state = ? WHERE id = ? AND state = ?');
+        $state_update->execute(['FINALIZED', $id, 'RECEIPT_DONE']);
+    }
+    
+    return json_ok(['is_completed' => $is_completed, 'all_completed' => $result['total'] == $result['completed']]);
 }
 
 static function delete_receipt($id){ require_role(['FINANCE','ADMIN']);
@@ -286,23 +415,37 @@ static function delete_receipt($id){ require_role(['FINANCE','ADMIN']);
 }
 
 static function delete($id){ require_role(['ADMIN']);
-    // リクエストに関連するレシートが存在するかチェック
-    $st = db()->prepare("SELECT COUNT(*) FROM receipts WHERE request_id = ?");
+    // リクエスト情報を取得
+    $st = db()->prepare('SELECT excel_path FROM requests WHERE id=?');
     $st->execute([$id]);
-    $receipt_count = $st->fetchColumn();
-    if($receipt_count > 0) return json_ng('このリクエストに関連するレシートが存在するため削除できません');
+    $request = $st->fetch();
+    if(!$request) return json_ng('リクエストが見つかりません', 404);
     
-    // リクエストに関連するアイテムが存在するかチェック
-    $st = db()->prepare("SELECT COUNT(*) FROM request_items WHERE request_id = ?");
-    $st->execute([$id]);
-    $item_count = $st->fetchColumn();
-    if($item_count > 0) return json_ng('このリクエストに関連するアイテムが存在するため削除できません');
+    // レシートファイルを取得して削除
+    $receipts = db()->prepare('SELECT file_path FROM receipts WHERE request_id=?');
+    $receipts->execute([$id]);
+    while($receipt = $receipts->fetch()) {
+        if($receipt['file_path'] && file_exists($receipt['file_path'])) {
+            unlink($receipt['file_path']);
+        }
+    }
     
-    // リクエストを削除
+    // レシートディレクトリを削除（空の場合）
+    if($request['excel_path']) {
+        $request_dir = dirname($request['excel_path']);
+        if(is_dir($request_dir) && count(scandir($request_dir)) <= 2) {
+            rmdir($request_dir);
+        }
+    }
+    
+    // Excelファイルを削除
+    if($request['excel_path'] && file_exists($request['excel_path'])) {
+        unlink($request['excel_path']);
+    }
+    
+    // データベースから削除（外部キー制約により関連データも自動削除）
     $st = db()->prepare('DELETE FROM requests WHERE id = ?');
     $st->execute([$id]);
-    
-    if($st->rowCount() === 0) return json_ng('リクエストが見つかりません');
     
     return json_ok();
 }

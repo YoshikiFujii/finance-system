@@ -42,6 +42,10 @@ function require_role(array $roles){
 }
 
 
+function is_logged_in(): bool {
+    return current_role() !== null;
+}
+
 function logout(){
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {

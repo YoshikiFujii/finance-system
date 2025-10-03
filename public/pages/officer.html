@@ -58,33 +58,70 @@
 }
 </style>
 <body class="officer-page">
+<div class="page-banner">
+    <img id="banner-logo" src="../assets/logo-wh.png" alt="Lotus" class="banner-logo">
+    <h1 class="banner-title">購入希望届 提出</h1>
+    <div class="banner-spacer"></div>
+    <button class="banner-logout" onclick="logout()">ログアウト</button>
+</div>
 <main class="container">
-    <h1>Lotus - 購入希望届 提出ページ</h1>
-    <form id="f" enctype="multipart/form-data">
-    <div>
-        <label>部署: <select name="department_id" id="dept"></select></label>
-        <label>氏名: <select name="member_id" id="member"></select></label>
+    <!-- 新規提出カード -->
+    <div class="submission-card">
+        <h3>新規提出</h3>
+        <form id="f" enctype="multipart/form-data">
+        <div>
+            <label>部署: <select name="department_id" id="dept"></select></label>
+            <label>氏名: <select name="member_id" id="member"></select></label>
+        </div>
+        <div>
+            <label>概要: <input name="summary" required maxlength="255"/></label>
+        </div>
+        <div>
+            <label>ネット購入:
+                <select name="expects_network" id="networkSelect">
+                    <option value="NONE">なし（現金手渡し）</option>
+                    <option value="CONVENIENCE">コンビニ払い</option>
+                    <option value="BANK_TRANSFER">振込</option>
+                </select>
+            </label>
+        </div>
+        <div id="bankTransferFields" style="display: none;">
+            <label>振込先銀行名: <input name="bank_name" placeholder="例: 三菱UFJ銀行" maxlength="100"/></label>
+            <label>支店名: <input name="branch_name" placeholder="例: 新宿支店" maxlength="100"/></label>
+            <label>口座種別: 
+                <select name="account_type">
+                    <option value="">選択してください</option>
+                    <option value="普通">普通</option>
+                    <option value="当座">当座</option>
+                    <option value="貯蓄">貯蓄</option>
+                </select>
+            </label>
+            <label>口座番号: <input name="account_number" placeholder="例: 1234567" maxlength="20"/></label>
+            <label>口座名義: <input name="account_holder" placeholder="例: ヤマダタロウ" maxlength="100"/></label>
+        </div>
+        <div>
+        <label>購入希望届（Excel）<input type="file" name="excel" accept=".xlsx,.xls" required/></label>
+        </div>
+        <div class="loading" id="loading">
+            <p>提出中...</p>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn">提出</button>
+        </form>
     </div>
-    <div>
-        <label>概要: <input name="summary" required maxlength="255"/></label>
+    
+    <!-- 提出履歴カード -->
+    <div class="submission-card">
+        <h3>提出履歴</h3>
+        <div class="history-controls">
+            <label>部署: <select id="historyDept"></select></label>
+            <label>氏名: <select id="historyMember"></select></label>
+            <button id="loadHistory" class="btn">履歴を表示</button>
+        </div>
+        <div style="margin: 10px 0; padding: 8px; background-color: var(--bg-secondary); border-radius: 4px; font-size: 12px; color: var(--muted);">
+            <strong>注意:</strong> 部署・氏名を指定しない場合は、現在受理済みまたは未受理の状態のリクエストを全て表示します。
+        </div>
+        <div id="historyList" class="history-list"></div>
     </div>
-    <div>
-        <label>ネット購入:
-            <select name="expects_network">
-                <option value="NONE">なし（現金手渡し）</option>
-                <option value="CONVENIENCE">コンビニ払い</option>
-                <option value="BANK_TRANSFER">振込</option>
-            </select>
-        </label>
-    </div>
-    <div>
-    <label>購入希望届（Excel）<input type="file" name="excel" accept=".xlsx,.xls" required/></label>
-    </div>
-    <div class="loading" id="loading">
-        <p>提出中...</p>
-    </div>
-    <button type="submit" class="submit-btn" id="submitBtn">提出</button>
-    </form>
 </main>
 <script>
 // 通知表示関数
@@ -143,6 +180,8 @@ function resetForm() {
     if (fileInput) {
         fileInput.value = '';
     }
+    // 振込口座記入欄を非表示
+    document.getElementById('bankTransferFields').style.display = 'none';
 }
 
 // グローバル変数でメンバーデータを保持
@@ -232,6 +271,13 @@ document.getElementById('f').onsubmit = async (e)=>{
     
     try {
         const fd = new FormData(e.target);
+        
+        // デバッグ情報をコンソールに出力
+        console.log('Form data being sent:');
+        for (let [key, value] of fd.entries()) {
+            console.log(key + ':', value);
+        }
+        
         const r = await fetch('/api/requests', {method: 'POST', body: fd});
         
         // HTTPステータスコードをチェック
@@ -274,8 +320,229 @@ document.getElementById('f').onsubmit = async (e)=>{
     }
 };
 
+// ネット購入選択時の処理
+document.getElementById('networkSelect').addEventListener('change', function() {
+    const bankTransferFields = document.getElementById('bankTransferFields');
+    if (this.value === 'BANK_TRANSFER') {
+        bankTransferFields.style.display = 'block';
+    } else {
+        bankTransferFields.style.display = 'none';
+    }
+});
+
 // ページ読み込み時にマスターデータを取得
 fetchMasters();
+
+// 提出履歴表示機能
+async function loadSubmissionHistory() {
+    const deptId = document.getElementById('historyDept').value;
+    const memberId = document.getElementById('historyMember').value;
+    
+    // 認証状態を確認
+    try {
+        const authCheck = await fetch('/api/auth/check');
+        if (!authCheck.ok) {
+            alert('認証が必要です。ログインし直してください。');
+            location.href = '/pages/login.html';
+            return;
+        }
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        alert('認証の確認に失敗しました。ログインし直してください。');
+        location.href = '/pages/login.html';
+        return;
+    }
+    
+    try {
+        let url = '/api/requests';
+        const params = new URLSearchParams();
+        
+        // 部署・氏名が指定されている場合はフィルタリング
+        if (deptId) {
+            params.append('department_id', deptId);
+        }
+        if (memberId) {
+            params.append('member_id', memberId);
+        }
+        
+        // 部署・氏名が未指定の場合は受理済みまたは未受理の状態のリクエストのみ表示
+        if (!deptId && !memberId) {
+            params.append('state', 'NEW,ACCEPTED');
+        }
+        
+        if (params.toString()) {
+            url += '?' + params.toString();
+        }
+        
+        console.log('Fetching history with URL:', url);
+        const response = await fetch(url);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            if (response.status === 401) {
+                alert('認証が必要です。ログインし直してください。');
+                location.href = '/pages/login.html';
+                return;
+            }
+            const errorText = await response.text();
+            console.error('API Error:', errorText);
+            alert('履歴の取得に失敗しました: HTTP ' + response.status);
+            return;
+        }
+        
+        const result = await response.json();
+        console.log('API Result:', result);
+        
+        if (!result.ok) {
+            alert('履歴の取得に失敗しました: ' + result.message);
+            return;
+        }
+        
+        displayHistoryList(result.data);
+    } catch (error) {
+        console.error('Failed to load history:', error);
+        alert('履歴の取得中にエラーが発生しました: ' + error.message);
+    }
+}
+
+function displayHistoryList(requests) {
+    const historyList = document.getElementById('historyList');
+    
+    if (requests.length === 0) {
+        historyList.innerHTML = '<p style="text-align: center; color: var(--muted); padding: 20px;">提出履歴がありません</p>';
+        return;
+    }
+    
+    historyList.innerHTML = requests.map(request => `
+        <div class="history-item">
+            <div class="history-header">
+                <span class="history-request-no">${request.request_no}</span>
+                <span class="history-date">${new Date(request.submitted_at).toLocaleString('ja-JP')}</span>
+            </div>
+            <div class="history-summary">${request.summary}</div>
+            <div class="history-details">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span style="color: var(--muted); font-size: 12px;">
+                            ${request.expects_network === 'NONE' ? '現金手渡し' : 
+                              request.expects_network === 'CONVENIENCE' ? 'コンビニ払い' : '振込'}
+                        </span>
+                        <span style="color: var(--text); font-size: 14px; font-weight: 500;">
+                            ${request.dept_name} - ${request.member_name}
+                        </span>
+                    </div>
+                    ${request.cash_given ? 
+                      '<span style="color: var(--accent); font-weight: 600; font-size: 14px;">渡し額: ¥' + parseFloat(request.cash_given).toLocaleString() + '</span>' : 
+                      '<span style="color: var(--muted); font-size: 12px;">渡し額: 未設定</span>'}
+                </div>
+                <div class="history-status">
+                    <span class="badge ${request.state}">${getStateText(request.state)}</span>
+                    ${request.state === 'REJECTED' && request.rejected_reason ? 
+                      '<div style="color: var(--muted); font-size: 12px; margin-top: 4px;">却下理由: ' + request.rejected_reason + '</div>' : ''}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getStateText(state) {
+    const stateMap = {
+        'NEW': '📋 未受理',
+        'ACCEPTED': '✅ 受理済み',
+        'CASH_GIVEN': '💰 現金渡し済み',
+        'COLLECTED': '📄 回収済み',
+        'RECEIPT_DONE': '🎉 処理完了',
+        'FINALIZED': '✅ 記入完了',
+        'REJECTED': '❌ 却下',
+        'CASH_WITHDRAWN': '🏧 下ろし済み',
+        'PAID': '💳 支払い済み',
+        'TRANSFERRED': '🏦 振込済み'
+    };
+    return stateMap[state] || state;
+}
+
+// 履歴用の部署選択肢を更新
+function updateHistoryDepartmentOptions() {
+    const deptSelect = document.getElementById('historyDept');
+    const memberSelect = document.getElementById('historyMember');
+    
+    // 部署選択肢をクリア
+    deptSelect.innerHTML = '<option value="">部署を選択</option>';
+    memberSelect.innerHTML = '<option value="">氏名を選択</option>';
+    
+    // 部署データを取得して選択肢を追加
+    fetch('/api/masters/departments')
+        .then(response => response.json())
+        .then(result => {
+            if (result.ok) {
+                deptSelect.innerHTML = '<option value="">部署を選択</option>' + 
+                    result.data.map(dept => `<option value="${dept.id}">${dept.name}</option>`).join('');
+            }
+        });
+}
+
+// 部署選択時に氏名選択肢を更新
+function updateHistoryMemberOptions() {
+    const deptId = document.getElementById('historyDept').value;
+    const memberSelect = document.getElementById('historyMember');
+    
+    memberSelect.innerHTML = '<option value="">氏名を選択</option>';
+    
+    if (!deptId) return;
+    
+    fetch('/api/masters/members')
+        .then(response => response.json())
+        .then(result => {
+            if (result.ok) {
+                const members = result.data.filter(member => member.department_id == deptId);
+                memberSelect.innerHTML = '<option value="">氏名を選択</option>' + 
+                    members.map(member => `<option value="${member.id}">${member.name}</option>`).join('');
+            }
+        });
+}
+
+// テーマに応じてロゴを切り替える関数
+function updateBannerLogo() {
+    const logo = document.getElementById('banner-logo');
+    const isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    if (isDarkTheme) {
+        logo.src = '../assets/logo-wh.png'; // ダークテーマ時は白いロゴ
+    } else {
+        logo.src = '../assets/logo-bl.png'; // ライトテーマ時は黒いロゴ
+    }
+}
+
+// ログアウト機能
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        location.href = '/pages/login.html';
+    } catch (e) {
+        console.error('Logout failed:', e);
+        location.href = '/pages/login.html';
+    }
+}
+
+// ページ読み込み時にロゴを設定
+document.addEventListener('DOMContentLoaded', () => {
+    updateBannerLogo();
+    updateHistoryDepartmentOptions();
+});
+
+// テーマ変更を監視
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateBannerLogo);
+
+// 履歴表示のイベントリスナー
+document.getElementById('loadHistory').addEventListener('click', loadSubmissionHistory);
+document.getElementById('historyDept').addEventListener('change', updateHistoryMemberOptions);
 </script>
+
+<footer class="page-footer">
+    <div class="footer-content">
+        <img src="../assets/RyoyuLogo.png" alt="寮友会ロゴ" class="footer-logo">
+        <div class="footer-text">© 千葉工業大学寮友会執行役員会 / 財務管理システム - Lotus</div>
+    </div>
+</footer>
 </body>
 </html>
