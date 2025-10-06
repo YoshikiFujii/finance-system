@@ -1,0 +1,29 @@
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# 環境変数・秘密
+.env
+*.env
+env.*         # 例: env.local 等
+!env.production.example  # サンプルは残す
+
+# アップロード・ログ・バックアップ
+storage/uploads/**
+storage/tmp/**
+logs/**
+backups/**
+
+# 生成物・一時ファイル
+*.log
+*.pid
+
+# 依存（Composer を使う場合）
+vendor/
+
+# ブラウザ用一時Cookie
+cookies.txt
+
+# もしテスト用Excelを公開不要なら（必要なら消してください）
+test*.xlsx
