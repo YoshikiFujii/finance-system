@@ -99,7 +99,7 @@ tr.innerHTML=`<td>${x.request_no}</td><td>${x.submitted_at}</td><td>${x.member_n
 <td>${x.cash_given ? '¥' + parseFloat(x.cash_given).toLocaleString() : ''}</td>
 <td id="processed_amount_${x.id}">¥0</td>
 <td>
-<button data-id="${x.id}" class="view-excel">内容確認</button>
+<button data-id="${x.id}" class="view-excel" ${!x.excel_path ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>内容確認</button>
 <button data-id="${x.id}" class="accept">受理</button>
 <button data-id="${x.id}" class="reject">却下</button>
 <button data-id="${x.id}" class="state-cash-given" style="display: none;">渡し済み</button>
@@ -241,6 +241,10 @@ document.getElementById('reload').onclick=load;
 document.addEventListener('click', async (e)=>{
 const id = e.target?.dataset?.id; if(!id) return;
 if(e.target.className==='view-excel'){
+// ボタンが無効化されている場合は処理しない
+if(e.target.disabled) {
+return;
+}
 // エクセルファイルを別タブで表示
 const r=await fetch(`/index.php?path=/api/requests/${id}/excel`);
 if(r.ok) {

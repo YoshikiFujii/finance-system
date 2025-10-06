@@ -31,7 +31,11 @@ class RequestController{
             return json_ng('振込を選択した場合は、振込口座情報をすべて入力してください');
         }
     }
-    if(!isset($_FILES['excel']) || $_FILES['excel']['error']!==UPLOAD_ERR_OK) return json_ng('excel required');
+    // エクセルファイルは任意のため、ファイルがアップロードされている場合のみ処理
+    $excel_file = null;
+    if(isset($_FILES['excel']) && $_FILES['excel']['error'] === UPLOAD_ERR_OK) {
+        $excel_file = $_FILES['excel'];
+    }
     // 保存先（受付番号を簡略化）
     $no = date('ymd').sprintf('%03d', random_int(1,999));
     $basedir = $cfg['upload_dir'].'/'.date('Y').'/'.date('m').'/'.$no;
@@ -46,23 +50,27 @@ class RequestController{
         error_log("Parent directory writable: " . (is_writable(dirname($basedir)) ? 'yes' : 'no'));
         return json_ng('アップロードディレクトリの作成に失敗しました。管理者にお問い合わせください。');
     }
-    // 拡張子/サイズ/MIMEチェック（簡易）
-    $f = $_FILES['excel'];
-    $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
-    $allowed = ['xlsx','xls'];
-    if(!in_array($ext,$allowed,true)) return json_ng('invalid excel extension');
-    if($f['size'] > 10*1024*1024) return json_ng('file too large');
+    // エクセルファイルの処理（ファイルがアップロードされている場合のみ）
+    $path = null;
+    if($excel_file) {
+        // 拡張子/サイズ/MIMEチェック（簡易）
+        $f = $excel_file;
+        $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+        $allowed = ['xlsx','xls'];
+        if(!in_array($ext,$allowed,true)) return json_ng('invalid excel extension');
+        if($f['size'] > 10*1024*1024) return json_ng('file too large');
 
-    // ファイル名を元の名前のまま保持（重複回避のためタイムスタンプとランダム数を追加）
-    $original_name = pathinfo($f['name'], PATHINFO_FILENAME);
-    $timestamp = date('His');
-    $random = sprintf('%03d', random_int(100,999));
-    $fname = $original_name . '_' . $timestamp . '_' . $random . '.' . $ext;
-    $path = $basedir.'/'.$fname;
-    
-    if(!move_uploaded_file($f['tmp_name'],$path)) {
-        error_log("File upload failed: " . $f['tmp_name'] . " -> " . $path);
-        return json_ng('ファイルのアップロードに失敗しました。管理者にお問い合わせください。');
+        // ファイル名を元の名前のまま保持（重複回避のためタイムスタンプとランダム数を追加）
+        $original_name = pathinfo($f['name'], PATHINFO_FILENAME);
+        $timestamp = date('His');
+        $random = sprintf('%03d', random_int(100,999));
+        $fname = $original_name . '_' . $timestamp . '_' . $random . '.' . $ext;
+        $path = $basedir.'/'.$fname;
+        
+        if(!move_uploaded_file($f['tmp_name'],$path)) {
+            error_log("File upload failed: " . $f['tmp_name'] . " -> " . $path);
+            return json_ng('ファイルのアップロードに失敗しました。管理者にお問い合わせください。');
+        }
     }
 
 
@@ -112,7 +120,7 @@ if($state!=''){
 if($dep!=''){ $where[]='r.department_id=?'; $args[]=(int)$dep; }
 if($member_id!=''){ $where[]='r.member_id=?'; $args[]=(int)$member_id; }
 if($department_id!=''){ $where[]='r.department_id=?'; $args[]=(int)$department_id; }
-$sql = 'SELECT r.id,r.request_no,r.submitted_at,r.summary,r.expects_network,r.state,r.cash_given,r.expected_total,r.rejected_reason,r.bank_name,r.branch_name,r.account_type,r.account_number,r.account_holder, m.name AS member_name, d.name AS dept_name
+$sql = 'SELECT r.id,r.request_no,r.submitted_at,r.summary,r.expects_network,r.state,r.cash_given,r.expected_total,r.rejected_reason,r.bank_name,r.branch_name,r.account_type,r.account_number,r.account_holder,r.excel_path, m.name AS member_name, d.name AS dept_name
 FROM requests r JOIN members m ON m.id=r.member_id JOIN departments d ON d.id=r.department_id';
 if($where) $sql .= ' WHERE '.implode(' AND ', $where);
 $sql .= ' ORDER BY r.submitted_at DESC LIMIT 200';

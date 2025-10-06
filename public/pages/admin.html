@@ -185,6 +185,7 @@ r.data.map(x=>`<div style="border:1px solid #ccc; margin:5px; padding:10px;">
 <button onclick="updateCashAmount(${x.id})">更新</button><br/>
 処理済み額: <span id="admin_processed_amount_${x.id}">¥0</span><br/>
 <button onclick="showAdminReceiptList(${x.id})">レシート一覧</button>
+<button onclick="viewAdminExcel(${x.id})" ${!x.excel_path ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>内容確認</button>
 <button onclick="deleteRequest(${x.id}, '${x.request_no}')">削除</button>
 </div>`).join('');
 
@@ -969,6 +970,23 @@ body: JSON.stringify({id})
 if(!j.ok) return alert(j.message);
 load();
 });
+}
+
+// 管理者用エクセルファイル表示
+async function viewAdminExcel(id) {
+try {
+const r = await fetch(`/index.php?path=/api/requests/${id}/excel`);
+if(r.ok) {
+const blob = await r.blob();
+const url = URL.createObjectURL(blob);
+window.open(url, '_blank');
+} else {
+alert('ファイルが見つかりません');
+}
+} catch(e) {
+console.error('Excel view error:', e);
+alert('エクセルファイルの表示中にエラーが発生しました');
+}
 }
 </script>
 

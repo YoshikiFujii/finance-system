@@ -100,7 +100,7 @@
             <label>口座名義: <input name="account_holder" placeholder="例: ヤマダタロウ" maxlength="100"/></label>
         </div>
         <div>
-        <label>購入希望届（Excel）<input type="file" name="excel" accept=".xlsx,.xls" required/></label>
+        <label>購入希望届（Excel）<span style="color: #666; font-size: 0.9em;">（任意）</span><input type="file" name="excel" accept=".xlsx,.xls"/></label>
         </div>
         <div class="loading" id="loading">
             <p>提出中...</p>
@@ -254,16 +254,15 @@ document.getElementById('f').onsubmit = async (e)=>{
         return;
     }
     
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showNotification('Excelファイルを選択してください', 'error');
-        return;
-    }
+    // エクセルファイルは任意のため、バリデーションを削除
     
-    // ファイルサイズチェック（10MB制限）
-    const file = fileInput.files[0];
-    if (file.size > 10 * 1024 * 1024) {
-        showNotification('ファイルサイズが大きすぎます（10MB以下にしてください）', 'error');
-        return;
+    // ファイルサイズチェック（10MB制限）- ファイルが選択されている場合のみ
+    if (fileInput.files && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        if (file.size > 10 * 1024 * 1024) {
+            showNotification('ファイルサイズが大きすぎます（10MB以下にしてください）', 'error');
+            return;
+        }
     }
     
     // ローディング開始
