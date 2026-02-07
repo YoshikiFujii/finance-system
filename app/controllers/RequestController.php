@@ -122,9 +122,14 @@ class RequestController
 
         error_log("Inserting request with bank info - expects: '$expects', bank_name: '$bank_name', branch_name: '$branch_name', account_type: '$account_type', account_number: '$account_number', account_holder: '$account_holder'");
 
+        // Active Year取得
+        $year_stmt = db()->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+        $year_row = $year_stmt->fetch();
+        $year_id = $year_row ? $year_row['id'] : null;
+
         try {
-            $st = db()->prepare('INSERT INTO requests(request_no,member_id,department_id,submitted_at,summary,expects_network,excel_path,bank_name,branch_name,account_type,account_number,account_holder) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-            $result = $st->execute([$no, $member_id, $department_id, date('Y-m-d H:i:s'), $summary, $expects, $path, $bank_name ?: null, $branch_name ?: null, $account_type ?: null, $account_number ?: null, $account_holder ?: null]);
+            $st = db()->prepare('INSERT INTO requests(request_no,member_id,department_id,submitted_at,summary,expects_network,excel_path,bank_name,branch_name,account_type,account_number,account_holder,year_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $result = $st->execute([$no, $member_id, $department_id, date('Y-m-d H:i:s'), $summary, $expects, $path, $bank_name ?: null, $branch_name ?: null, $account_type ?: null, $account_number ?: null, $account_holder ?: null, $year_id]);
 
             if (!$result) {
                 error_log("Database insert failed - SQL error info: " . json_encode($st->errorInfo()));
@@ -132,7 +137,7 @@ class RequestController
             }
 
             $inserted_id = db()->lastInsertId();
-            error_log("Request inserted successfully with ID: " . $inserted_id);
+            error_log("Request inserted successfully with ID: " . $inserted_id . " Year ID: " . $year_id);
 
         } catch (Exception $e) {
             error_log("Database insert error: " . $e->getMessage());
@@ -214,6 +219,21 @@ class RequestController
             if ($department_id != '') {
                 $where[] = 'r.department_id=?';
                 $args[] = (int) $department_id;
+            }
+
+            // 年度フィルタ（指定がない場合はアクティブ年度）
+            $year_id = $_GET['year_id'] ?? null;
+            if ($year_id === null || $year_id === '') {
+                // default to active year
+                $yst = db()->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+                $yrow = $yst->fetch();
+                if ($yrow) {
+                    $where[] = 'r.year_id=?';
+                    $args[] = $yrow['id'];
+                }
+            } else {
+                $where[] = 'r.year_id=?';
+                $args[] = (int) $year_id;
             }
 
             // テーブルが存在するかチェック

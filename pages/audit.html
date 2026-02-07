@@ -334,6 +334,14 @@
         <!-- 左カラム: 行事一覧 -->
         <div class="audit-panel">
             <h3>行事一覧</h3>
+            <div class="date-filter" style="margin-bottom: 15px; padding: 10px;">
+                <label style="font-weight: bold; margin-right: 10px;">年度:</label>
+                <select id="receipt_year"
+                    style="padding: 5px; border-radius: 4px; border: 1px solid var(--border); background: var(--panel); color: var(--text);"
+                    onchange="loadEvents()">
+                    <option value="">すべて</option>
+                </select>
+            </div>
             <div class="accounting-period-filter"
                 style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid #a71e2a; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -421,6 +429,8 @@
                     toggleFullscreen();
                 });
             }
+            loadAccountingPeriods();
+            loadYears().then(() => loadEvents()); // Load years then events (to use default year)
         });
 
         // テーマ変更を監視
@@ -460,9 +470,11 @@
         function getReceiptDateParams() {
             const startDate = document.getElementById('receipt_start_date').value;
             const endDate = document.getElementById('receipt_end_date').value;
+            const yearId = document.getElementById('receipt_year') ? document.getElementById('receipt_year').value : '';
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
+            if (yearId) params.append('year_id', yearId);
 
             // チェックされた計上期間IDを取得
             const checkedPeriods = Array.from(document.querySelectorAll('#accounting-period-checkboxes input[type="checkbox"]:checked'))
@@ -475,6 +487,34 @@
             }
 
             return params.toString();
+        }
+
+        // 年度一覧を読み込む
+        async function loadYears() {
+            try {
+                const response = await fetch('/index.php?path=/api/masters/years');
+                const result = await response.json();
+                if (result.ok) {
+                    const el = document.getElementById('receipt_year');
+                    if (el) {
+                        const currentVal = el.value;
+                        el.innerHTML = '<option value="">すべて</option>';
+                        result.data.forEach(y => {
+                            const option = document.createElement('option');
+                            option.value = y.id;
+                            option.textContent = y.name + (y.is_active == 1 ? ' (現在)' : '');
+                            el.appendChild(option);
+                            // デフォルトでActiveな年を選択する
+                            if (!currentVal && y.is_active == 1) {
+                                el.value = y.id;
+                            }
+                        });
+                        if (currentVal) el.value = currentVal;
+                    }
+                }
+            } catch (e) {
+                console.error('Load years error:', e);
+            }
         }
 
         // 日付条件と計上期間をクリアする関数

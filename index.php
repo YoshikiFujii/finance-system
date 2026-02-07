@@ -240,6 +240,14 @@ try {
         }
     } elseif ($path === '/api/masters/bulk-upload') {
         echo MasterController::bulk_upload();
+    } elseif ($path === '/api/masters/years') {
+        echo MasterController::years_list();
+    } elseif ($path === '/api/masters/year') {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo MasterController::upsert_year();
+        } elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+            echo MasterController::delete_year();
+        }
     }
 
     // リクエスト関連
@@ -387,6 +395,13 @@ try {
     } elseif (preg_match('/^\/api\/receipts\/(\d+)\/toggle-storaged$/', $path, $matches)) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo MasterController::toggle_receipt_storaged((int) $matches[1]);
+        } else {
+            http_response_code(405);
+            echo json_encode(['ok' => false, 'message' => 'Method not allowed'], JSON_UNESCAPED_UNICODE);
+        }
+    } elseif ($path === '/api/finance/reset') {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo FinanceController::reset_system();
         } else {
             http_response_code(405);
             echo json_encode(['ok' => false, 'message' => 'Method not allowed'], JSON_UNESCAPED_UNICODE);

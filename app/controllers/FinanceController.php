@@ -291,28 +291,53 @@ class FinanceController
                 error_log("Cash amount query error: " . $e->getMessage());
             }
 
-            // 処理済み額を取得（レシートの総額）
+            // 処理済み額を取得（現在アクティブな年度のレシートのみ）
             $processedAmount = 0;
             try {
                 // receiptsテーブルの存在確認
                 $receiptsTableCheck = $pdo->query("SHOW TABLES LIKE 'receipts'");
                 if ($receiptsTableCheck->rowCount() > 0) {
+                    // アクティブな年度を取得
+                    $activeYearId = null;
+                    try {
+                        $yearStmt = $pdo->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+                        $activeYear = $yearStmt->fetch(PDO::FETCH_ASSOC);
+                        if ($activeYear) {
+                            $activeYearId = $activeYear['id'];
+                        }
+                    } catch (Exception $e) {
+                        // years table might not exist in old version
+                    }
+
                     // deleted_atカラムの存在確認
                     $receiptsColumnCheck = $pdo->query("SHOW COLUMNS FROM receipts LIKE 'deleted_at'");
                     $hasReceiptsDeletedAt = $receiptsColumnCheck->rowCount() > 0;
 
+                    // year_idカラムの存在確認
+                    $yearColumnCheck = $pdo->query("SHOW COLUMNS FROM receipts LIKE 'year_id'");
+                    $hasYearId = $yearColumnCheck->rowCount() > 0;
+
+                    $whereClauses = [];
+                    $params = [];
+
                     if ($hasReceiptsDeletedAt) {
-                        $processedStmt = $pdo->query("
-                            SELECT COALESCE(SUM(total), 0) as total 
-                            FROM receipts 
-                            WHERE deleted_at IS NULL
-                        ");
-                    } else {
-                        $processedStmt = $pdo->query("
-                            SELECT COALESCE(SUM(total), 0) as total 
-                            FROM receipts
-                        ");
+                        $whereClauses[] = "deleted_at IS NULL";
                     }
+
+                    if ($hasYearId && $activeYearId) {
+                        $whereClauses[] = "year_id = ?";
+                        $params[] = $activeYearId;
+                    }
+
+                    $whereSql = "";
+                    if (!empty($whereClauses)) {
+                        $whereSql = "WHERE " . implode(" AND ", $whereClauses);
+                    }
+
+                    $sql = "SELECT COALESCE(SUM(total), 0) as total FROM receipts $whereSql";
+                    $processedStmt = $pdo->prepare($sql);
+                    $processedStmt->execute($params);
+
                     $processedAmount = $processedStmt->fetch()['total'] ?? 0;
                 }
             } catch (Exception $e) {
@@ -861,10 +886,37 @@ class FinanceController
                 $currentCount = $countStmt->fetch()['count'];
                 error_log("Current income records count before insert: " . $currentCount);
 
+                // 現在のアクティブな年度を取得
+                $activeYearId = null;
+                try {
+                    $yearStmt = $pdo->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+                    $activeYear = $yearStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($activeYear) {
+                        $activeYearId = $activeYear['id'];
+                    }
+                } catch (Exception $e) {
+                    error_log("Failed to get active year: " . $e->getMessage());
+                }
+
                 // 収入データをincome_recordsテーブルに保存
-                error_log("Inserting income record: amount=" . $amount . ", description=" . $description);
-                $stmt = $pdo->prepare("INSERT INTO income_records (amount, description, created_at) VALUES (?, ?, NOW())");
-                $result = $stmt->execute([$amount, $description]);
+                error_log("Inserting income record: amount=" . $amount . ", description=" . $description . ", year_id=" . $activeYearId);
+
+                // income_recordsにyear_idカラムがあるか確認
+                $hasYearId = false;
+                try {
+                    $colCheck = $pdo->query("SHOW COLUMNS FROM income_records LIKE 'year_id'");
+                    $hasYearId = $colCheck->rowCount() > 0;
+                } catch (Exception $e) {
+                }
+
+                if ($hasYearId) {
+                    $stmt = $pdo->prepare("INSERT INTO income_records (amount, description, year_id, created_at) VALUES (?, ?, ?, NOW())");
+                    $result = $stmt->execute([$amount, $description, $activeYearId]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO income_records (amount, description, created_at) VALUES (?, ?, NOW())");
+                    $result = $stmt->execute([$amount, $description]);
+                }
+
                 error_log("Income record insert result: " . ($result ? 'success' : 'failed'));
 
                 // 挿入後の収入記録数を確認
@@ -951,20 +1003,51 @@ class FinanceController
                 return json_ok(['incomes' => []]);
             }
 
+            // アクティブな年度を取得
+            $activeYearId = null;
+            try {
+                $yearStmt = $pdo->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+                $activeYear = $yearStmt->fetch(PDO::FETCH_ASSOC);
+                if ($activeYear) {
+                    $activeYearId = $activeYear['id'];
+                }
+            } catch (Exception $e) {
+            }
+
+            // income_recordsにyear_idカラムがあるか確認
+            $hasYearId = false;
+            try {
+                $colCheck = $pdo->query("SHOW COLUMNS FROM income_records LIKE 'year_id'");
+                $hasYearId = $colCheck->rowCount() > 0;
+            } catch (Exception $e) {
+            }
+
+            $sql = "SELECT id, amount, description, created_at FROM income_records";
+            $where = [];
+            $params = [];
+
+            if ($hasYearId && $activeYearId) {
+                // year_idがNULLのもの（古いデータ）も表示するかどうかは要件によるが、
+                // 「activeの年度のものだけにして」という要望なので、activeYearIdに一致するもののみにする
+                // ただし、移行過渡期でNULLのものをどうするか？
+                // R7への移行を行う前提なので、NULLは表示されなくて良い（またはR7にUpdateされているはず）
+                $where[] = "year_id = ?";
+                $params[] = $activeYearId;
+            }
+
+            if (!empty($where)) {
+                $sql .= " WHERE " . implode(" AND ", $where);
+            }
+
+            $sql .= " ORDER BY created_at DESC";
+
             // 収入一覧を取得
-            $stmt = $pdo->query("
-                SELECT 
-                    id,
-                    amount,
-                    description,
-                    created_at
-                FROM income_records 
-                ORDER BY created_at DESC
-            ");
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
             $incomes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             error_log("Retrieved " . count($incomes) . " income records");
-            error_log("Income records details: " . json_encode($incomes));
+            // error_log("Income records details: " . json_encode($incomes));
 
             return json_ok(['incomes' => $incomes]);
         } catch (Exception $e) {
@@ -1121,16 +1204,50 @@ class FinanceController
                 return json_ok(['pending_amount' => 0]);
             }
 
+            // アクティブな年度を取得
+            $activeYearId = null;
+            try {
+                $yearStmt = $pdo->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+                $activeYear = $yearStmt->fetch(PDO::FETCH_ASSOC);
+                if ($activeYear) {
+                    $activeYearId = $activeYear['id'];
+                }
+            } catch (Exception $e) {
+                // years table might not exist
+            }
+
+            // state条件
+            $whereClauses = [
+                "state IN ('CASH_GIVEN', 'TRANSFERRED', 'COLLECTED', 'RECEIPT_DONE')",
+                "state NOT IN ('FINALIZED', 'REJECTED')"
+            ];
+            $params = [];
+
+            // year_idカラムの存在確認とフィルタ
+            try {
+                $yearColumnCheck = $pdo->query("SHOW COLUMNS FROM requests LIKE 'year_id'");
+                $hasYearId = $yearColumnCheck->rowCount() > 0;
+
+                if ($hasYearId && $activeYearId) {
+                    $whereClauses[] = "year_id = ?";
+                    $params[] = $activeYearId;
+                }
+            } catch (Exception $e) {
+                // ignore
+            }
+
+            $whereSql = implode(" AND ", $whereClauses);
+
             // 渡し済み、振込済み、回収済み、または処理完了（レシート提出済み）であり、
             // まだ最終化（記入完了）されていない購入希望について、
             // 渡し額（予算）と処理済み額（実績）の差額（未処理額）の合計を取得
             // レシートが削除された場合、processed_amountが減るため、その分が再び「未処理」として計上される
-            $stmt = $pdo->query("
+            $stmt = $pdo->prepare("
                 SELECT COALESCE(SUM(cash_given - COALESCE(processed_amount, 0)), 0) as total 
                 FROM requests 
-                WHERE state IN ('CASH_GIVEN', 'TRANSFERRED', 'COLLECTED', 'RECEIPT_DONE') 
-                AND state NOT IN ('FINALIZED', 'REJECTED')
+                WHERE $whereSql
             ");
+            $stmt->execute($params);
             $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
             $pendingAmount = $result ? (float) $result['total'] : 0;
@@ -1218,6 +1335,40 @@ class FinanceController
         } catch (Exception $e) {
             error_log("Debug database error: " . $e->getMessage());
             return json_ng('データベースの確認に失敗しました: ' . $e->getMessage(), 500);
+        }
+    }
+
+    // システムリセット（全資金・ログの初期化）
+    public static function reset_system()
+    {
+        require_role(['ADMIN']);
+
+        try {
+            $pdo = db();
+            error_log("=== SYSTEM RESET START ===");
+
+            // 1. Logsのクリア
+            $pdo->exec("TRUNCATE TABLE finance_logs");
+            $pdo->exec("TRUNCATE TABLE fund_logs");
+            error_log("Truncated finance_logs and fund_logs");
+
+            // 2. Fundsの初期化 (ID=1のレコードを0にリセット)
+            // 既存レコードがあれば更新、なければ作成
+            $stmt = $pdo->prepare("SELECT id FROM funds WHERE id=1");
+            $stmt->execute();
+            if ($stmt->fetch()) {
+                $pdo->exec("UPDATE funds SET bank_balance=0, cash_on_hand=0, actual_cash_on_hand=0, processed_amount=0, updated_at=NOW() WHERE id=1");
+            } else {
+                $pdo->exec("INSERT INTO funds (id, bank_balance, cash_on_hand, actual_cash_on_hand, processed_amount, updated_at) VALUES (1, 0, 0, 0, 0, NOW())");
+            }
+            error_log("Reset funds table to 0");
+
+            error_log("=== SYSTEM RESET COMPLETE ===");
+            return json_ok(['message' => 'システムをリセットしました（資金・ログの初期化完了）']);
+
+        } catch (Exception $e) {
+            error_log("System reset error: " . $e->getMessage());
+            return json_ng('システムリセットに失敗しました: ' . $e->getMessage(), 500);
         }
     }
 }

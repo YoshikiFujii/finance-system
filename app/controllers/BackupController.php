@@ -400,8 +400,9 @@ class BackupController
     {
         require_role(['ADMIN']);
 
+
         $input = json_decode(file_get_contents('php://input'), true) ?: [];
-        $filename = $input['filename'] ?? '';
+        $filename = $input['filename'] ?? $_POST['filename'] ?? '';
 
         if (empty($filename)) {
             return json_ng('ファイル名が指定されていません');

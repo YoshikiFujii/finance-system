@@ -32,6 +32,15 @@ CREATE TABLE IF NOT EXISTS `accounting_periods` (
     `is_active` TINYINT(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 4.5 Years Master
+CREATE TABLE IF NOT EXISTS `years` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(255) NOT NULL,
+    `is_active` TINYINT(1) DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
 -- 5. Passwords (for Role-based Auth)
 CREATE TABLE IF NOT EXISTS `passwords` (
     `role` VARCHAR(50) PRIMARY KEY,
@@ -61,10 +70,12 @@ CREATE TABLE IF NOT EXISTS `requests` (
     `expected_total` DECIMAL(10, 2) DEFAULT 0,
     `processed_amount` DECIMAL(10, 2) DEFAULT 0,
     `rejected_reason` TEXT,
+    `year_id` INT,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE RESTRICT,
-    FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE RESTRICT
+    FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`year_id`) REFERENCES `years`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. Receipts
@@ -81,11 +92,13 @@ CREATE TABLE IF NOT EXISTS `receipts` (
     `storaged` TINYINT(1) DEFAULT 0,
     `event_id` INT,
     `accounting_period_id` INT,
+    `year_id` INT,
     `deleted_at` DATETIME DEFAULT NULL,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`request_id`) REFERENCES `requests`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON DELETE SET NULL,
-    FOREIGN KEY (`accounting_period_id`) REFERENCES `accounting_periods`(`id`) ON DELETE SET NULL
+    FOREIGN KEY (`accounting_period_id`) REFERENCES `accounting_periods`(`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`year_id`) REFERENCES `years`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Audit Logs
@@ -134,7 +147,9 @@ CREATE TABLE IF NOT EXISTS `income_records` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `amount` DECIMAL(10, 2) NOT NULL,
     `description` TEXT NOT NULL,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `year_id` INT,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`year_id`) REFERENCES `years`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Request Items (Optional/Unused but referenced in backups)
