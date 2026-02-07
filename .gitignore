@@ -23,6 +23,6 @@ Thumbs.db
 debug_*.php
 reset_passwords.php
 fix_storaged_column.php
-seed_passwords.sql
+
 generate_hashes.php
-launch.php
+
