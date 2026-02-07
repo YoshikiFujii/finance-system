@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Lotus - 財務ページ</title>
+  <link rel="stylesheet" href="../assets/app.css?v=1" />
+</head>
+
+<body>
+  <div class="page-banner">
+    <img id="banner-logo" src="../assets/logo-wh.png" alt="Lotus" class="banner-logo">
+    <h1 class="banner-title">財務一覧</h1>
+    <div class="banner-spacer"></div>
+    <img id="nanashi-mumei-gif" src="../assets/nanashi-mumei.gif" alt="Nanashi Mumei"
+      style="height: 50px; width: auto; margin-right: 10px; cursor: pointer;">
+    <button class="banner-logout" onclick="logout()">ログアウト</button>
+  </div>
+  <div class="finance-search-controls">
+    <input id="q" placeholder="検索（提出者/概要）" />
+    <button id="reload">更新</button>
+  </div>
+  <table border="1" cellpadding="6">
+    <thead>
+      <tr>
+        <th>受付番号</th>
+        <th>提出日時</th>
+        <th>提出者</th>
+        <th>部署</th>
+        <th>概要</th>
+        <th>ネット</th>
+        <th>状態</th>
+        <th>渡し額</th>
+        <th>処理済み額</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="list"></tbody>
+  </table>
+  <div id="detail"></div>
+
+  <!-- レシートアップロードモーダル -->
+  <div id="receiptUploadModal" class="modal-overlay">
+    <div class="modal-content" style="min-width:400px;">
+      <h3>レシートアップロード</h3>
+      <form id="receiptUploadForm" enctype="multipart/form-data">
+        <input type="hidden" id="uploadRequestId" />
+        <label>合計金額:</label>
+        <input type="number" id="receiptTotal" step="0.01" min="0" required />
+        <label>行事:</label>
+        <select id="receiptEvent">
+          <option value="">行事を選択</option>
+        </select>
+        <label>科目:</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <select id="receiptSubject" required style="flex: 1;">
+            <option value="">科目を選択</option>
+          </select>
+          <input type="text" id="receiptSubjectNew" placeholder="新しい科目を入力" style="flex: 1; display: none;" />
+          <button type="button" id="toggleSubjectInput" style="padding: 4px 8px; font-size: 12px;">新規追加</button>
+        </div>
+        <label>購入目的:</label>
+        <select id="receiptPurpose" required>
+          <option value="">購入目的を選択</option>
+          <option value="備品購入">備品購入</option>
+          <option value="運営用品購入">運営用品購入</option>
+          <option value="景品購入">景品購入</option>
+          <option value="広報物作成">広報物作成</option>
+          <option value="朝・昼・夜食購入">朝・昼・夜食購入</option>
+          <option value="その他">その他</option>
+        </select>
+        <div id="purposeOtherDiv" style="display: none;">
+          <label>その他の詳細:</label>
+          <input type="text" id="purposeOther" placeholder="購入目的の詳細を入力してください" />
+        </div>
+        <label>支払い者:</label>
+        <input type="text" id="receiptPayer" placeholder="支払い者名" />
+        <label>レシート日付:</label>
+        <input type="date" id="receiptDate" style="color-scheme: light dark;" />
+        <div class="modal-buttons">
+          <button type="button" onclick="closeReceiptUploadModal()">キャンセル</button>
+          <button type="submit">アップロード</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- レシート一覧モーダル -->
+  <div id="receiptListModal" class="modal-overlay">
+    <div class="modal-content" style="min-width:600px;">
+      <h3>レシート一覧</h3>
+      <div id="receiptList"></div>
+      <div class="modal-buttons">
+        <button id="completeAllReceiptsBtn" onclick="completeAllReceipts()" style="display: none;">記入完了</button>
+        <button onclick="closeReceiptListModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- レシート処理モーダル -->
+  <div id="receiptProcessModal" class="modal-overlay">
+    <div class="modal-content" style="min-width:400px;">
+      <h3>レシート処理</h3>
+      <div id="receiptProcessInfo"></div>
+      <label>お釣りの額:</label>
+      <input type="number" id="changeAmount" step="0.01" min="0" value="0" />
+      <div class="modal-buttons">
+        <button type="button" onclick="closeReceiptProcessModal()">キャンセル</button>
+        <button type="button" onclick="processReceipt()">処理完了</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function load() {
+      const q = document.getElementById('q').value;
+      const r = await fetch('/index.php?path=/api/requests&q=' + encodeURIComponent(q));
+      const j = await r.json();
+      const tb = document.getElementById('list'); tb.innerHTML = '';
+      if (!j.ok) { alert(j.message); return; }
+      // 記入完了（FINALIZED）状態のリクエストを除外
+      const filteredData = j.data.filter(x => x.state !== 'FINALIZED');
+      for (const x of filteredData) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${x.request_no}</td><td>${x.submitted_at}</td><td>${x.member_name}</td><td>${x.dept_name}</td>
+<td>${x.summary}</td><td>${getNetworkText(x)}</td>
+<td><span class="badge ${x.state}">${getStateText(x.state)}</span>${x.state === 'REJECTED' && x.rejected_reason ? '<br/><small style="color: var(--muted);">理由: ' + x.rejected_reason + '</small>' : ''}</td>
+<td>${x.cash_given ? '¥' + parseFloat(x.cash_given).toLocaleString() : ''}</td>
+<td>${x.processed_amount ? '¥' + parseFloat(x.processed_amount).toLocaleString() : '¥0'}</td>
+<td>
+<button data-id="${x.id}" class="view-excel" ${!x.excel_path ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>内容確認</button>
+<button data-id="${x.id}" class="accept">受理</button>
+<button data-id="${x.id}" class="reject">却下</button>
+<button data-id="${x.id}" class="state-cash-given" style="display: none;">渡し済み</button>
+<button data-id="${x.id}" class="transfer" style="display: none;">振込済み</button>
+<button data-id="${x.id}" class="state-collected" style="display: none;">回収済み</button>
+<button data-id="${x.id}" class="receipt-process" style="display: none;">処理</button>
+<button data-id="${x.id}" class="upload-receipt" style="display: none;">レシート追加</button>
+<button data-id="${x.id}" class="view-receipts" style="display: none;">レシート一覧</button>
+</td>`;
+        tb.appendChild(tr);
+
+        // 状態に応じてボタンの表示を制御
+        const row = tb.lastElementChild;
+        const acceptBtn = row.querySelector('.accept');
+        const rejectBtn = row.querySelector('.reject');
+        const cashGivenBtn = row.querySelector('.state-cash-given');
+        const collectedBtn = row.querySelector('.state-collected');
+        const receiptBtn = row.querySelector('.receipt-process');
+        const uploadReceiptBtn = row.querySelector('.upload-receipt');
+        const viewReceiptsBtn = row.querySelector('.view-receipts');
+
+        if (x.state === 'NEW') {
+          acceptBtn.style.display = 'inline-block';
+          rejectBtn.style.display = 'inline-block';
+        } else if (x.state === 'ACCEPTED') {
+          // 銀行振込の場合は振込済みボタン、それ以外は現金渡しボタンを表示
+          if (x.expects_network === 'BANK_TRANSFER') {
+            // 振込済みボタンを表示（後で追加）
+            const transferBtn = row.querySelector('.transfer');
+            if (transferBtn) transferBtn.style.display = 'inline-block';
+          } else {
+            cashGivenBtn.style.display = 'inline-block';
+          }
+        } else if (x.state === 'CASH_GIVEN') {
+          collectedBtn.style.display = 'inline-block';
+          uploadReceiptBtn.style.display = 'inline-block';
+          viewReceiptsBtn.style.display = 'inline-block';
+          // 渡し済み状態では受理・却下ボタンを非表示
+          acceptBtn.style.display = 'none';
+          rejectBtn.style.display = 'none';
+        } else if (x.state === 'TRANSFERRED') {
+          // 振込済み状態では回収済みボタンとレシート処理ボタンを表示
+          collectedBtn.style.display = 'inline-block';
+          uploadReceiptBtn.style.display = 'inline-block';
+          viewReceiptsBtn.style.display = 'inline-block';
+          // 振込済み状態では受理・却下ボタンを非表示
+          acceptBtn.style.display = 'none';
+          rejectBtn.style.display = 'none';
+        } else if (x.state === 'COLLECTED') {
+          receiptBtn.style.display = 'inline-block';
+          uploadReceiptBtn.style.display = 'inline-block';
+          viewReceiptsBtn.style.display = 'inline-block';
+          // 回収済み状態でも受理・却下ボタンを非表示
+          acceptBtn.style.display = 'none';
+          rejectBtn.style.display = 'none';
+        } else if (x.state === 'RECEIPT_DONE') {
+          // 処理完了状態ではレシートアップロードボタンを非表示、レシート一覧のみ表示
+          uploadReceiptBtn.style.display = 'none';
+          viewReceiptsBtn.style.display = 'inline-block';
+          // 処理完了状態では受理・却下ボタンを非表示
+          acceptBtn.style.display = 'none';
+          rejectBtn.style.display = 'none';
+        } else if (x.state === 'FINALIZED') {
+          // 記入完了状態では全てのボタンを非表示
+          uploadReceiptBtn.style.display = 'none';
+          viewReceiptsBtn.style.display = 'inline-block';
+          acceptBtn.style.display = 'none';
+          rejectBtn.style.display = 'none';
+        } else if (x.state === 'REJECTED') {
+          // 却下状態では受理・却下ボタンを非表示
+          acceptBtn.style.display = 'none';
+          rejectBtn.style.display = 'none';
+        }
+
+      }
+    }
+
+    function getStateText(state) {
+      const stateMap = {
+        'NEW': '📋 未受理',
+        'ACCEPTED': '🔵 受理済み',
+        'CASH_GIVEN': '💰 現金渡し済み',
+        'COLLECTED': '📄 回収済み',
+        'RECEIPT_DONE': '🎉 処理完了',
+        'FINALIZED': '✅ 記入完了',
+        'REJECTED': '❌ 却下',
+        'CASH_WITHDRAWN': '🏧 下ろし済み',
+        'PAID': '💳 支払い済み',
+        'TRANSFERRED': '🏦 振込済み'
+      };
+      return stateMap[state] || state;
+    }
+
+    function getNetworkText(request) {
+      switch (request.expects_network) {
+        case 'NONE':
+          return '現金手渡し';
+        case 'CONVENIENCE':
+          return 'コンビニ払い';
+        case 'BANK_TRANSFER':
+          if (request.bank_name && request.branch_name && request.account_type && request.account_number && request.account_holder) {
+            return `振込<br/><small style="color: var(--muted); font-size: 11px;">
+${request.bank_name} ${request.branch_name}<br/>
+${request.account_type} ${request.account_number}<br/>
+${request.account_holder}
+</small>`;
+          } else {
+            return '振込（口座情報未入力）';
+          }
+        default:
+          return request.expects_network;
+      }
+    }
+
+    load();
+
+
+    document.getElementById('reload').onclick = load;
+
+
+    document.addEventListener('click', async (e) => {
+      const id = e.target?.dataset?.id; if (!id) return;
+      if (e.target.className === 'view-excel') {
+        // ボタンが無効化されている場合は処理しない
+        if (e.target.disabled) {
+          return;
+        }
+        // エクセルファイルを別タブで表示
+        const r = await fetch(`/index.php?path=/api/requests/${id}/excel`);
+        if (r.ok) {
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        } else {
+          alert('ファイルが見つかりません');
+        }
+      } else if (e.target.className === 'accept') {
+        const r = await fetch(`/index.php?path=/api/requests/${id}/accept`, { method: 'POST' });
+        const j = await r.json();
+        if (!j.ok) return alert(j.message);
+        load();
+      } else if (e.target.className === 'state-cash-given') {
+        const cashAmount = prompt('渡し額を入力してください'); if (!cashAmount || isNaN(cashAmount)) return;
+        const r = await fetch(`/index.php?path=/api/requests/${id}/cash`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cash_given: parseFloat(cashAmount) }) });
+        const j = await r.json(); if (!j.ok) return alert(j.message);
+        const r2 = await fetch(`/index.php?path=/api/requests/${id}/state`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ next_state: 'CASH_GIVEN' }) });
+        const j2 = await r2.json(); if (!j2.ok) return alert(j2.message); load();
+      } else if (e.target.className === 'transfer') {
+        const transferAmount = prompt('振込金額を入力してください'); if (!transferAmount || isNaN(transferAmount)) return;
+        const r = await fetch(`/index.php?path=/api/requests/${id}/cash`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cash_given: parseFloat(transferAmount) }) });
+        const j = await r.json(); if (!j.ok) return alert(j.message);
+        const r3 = await fetch(`/index.php?path=/api/requests/${id}/state`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ next_state: 'TRANSFERRED' }) });
+        const j3 = await r3.json(); if (!j3.ok) return alert(j3.message); load();
+      } else if (e.target.className === 'state-collected') {
+        const r = await fetch(`/index.php?path=/api/requests/${id}/state`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ next_state: 'COLLECTED' }) });
+        const j = await r.json(); if (!j.ok) return alert(j.message); load();
+      } else if (e.target.className === 'reject') {
+        const reason = prompt('却下理由'); if (!reason) return;
+        const r = await fetch(`/index.php?path=/api/requests/${id}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) });
+        const j = await r.json(); if (!j.ok) return alert(j.message); load();
+      } else if (e.target.className === 'receipt-process') {
+        showReceiptProcessModal(id);
+      } else if (e.target.className === 'upload-receipt') {
+        showReceiptUploadModal(id);
+      } else if (e.target.className === 'view-receipts') {
+        showReceiptListModal(id);
+      }
+    });
+
+
+    // レシートアップロードモーダル関連
+    async function showReceiptUploadModal(requestId) {
+      document.getElementById('uploadRequestId').value = requestId;
+      document.getElementById('receiptDate').value = new Date().toISOString().slice(0, 10);
+
+      // リクエスト情報を取得して支払い者名を設定
+      try {
+        const response = await fetch('/index.php?path=/api/requests');
+        const result = await response.json();
+        if (result.ok) {
+          const request = result.data.find(r => r.id == requestId);
+          if (request) {
+            document.getElementById('receiptPayer').value = request.member_name;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load request info:', error);
+      }
+
+      // 行事データを読み込み
+      try {
+        const response = await fetch('/index.php?path=/api/masters/events');
+        const result = await response.json();
+        if (result.ok) {
+          const eventSelect = document.getElementById('receiptEvent');
+          eventSelect.innerHTML = '<option value="">行事を選択</option>' +
+            result.data.map(event => `<option value="${event.id}">${event.name}</option>`).join('');
+        }
+      } catch (error) {
+        console.error('Failed to load events:', error);
+      }
+
+      // 科目一覧をクリア
+      const subjectSelect = document.getElementById('receiptSubject');
+      subjectSelect.innerHTML = '<option value="">科目を選択</option>';
+      subjectSelect.required = true;
+      document.getElementById('receiptSubjectNew').style.display = 'none';
+      document.getElementById('receiptSubjectNew').required = false;
+
+      document.getElementById('receiptUploadModal').classList.add('show');
+    }
+
+    // 行事選択時に科目を読み込む
+    document.getElementById('receiptEvent').addEventListener('change', async function () {
+      const eventId = this.value;
+      const subjectSelect = document.getElementById('receiptSubject');
+
+      if (!eventId) {
+        subjectSelect.innerHTML = '<option value="">科目を選択</option>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`/index.php?path=/api/events/${eventId}/subjects`);
+        const result = await response.json();
+
+        if (result.ok) {
+          subjectSelect.innerHTML = '<option value="">科目を選択</option>';
+          result.data.forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject;
+            option.textContent = subject;
+            subjectSelect.appendChild(option);
+          });
+        } else {
+          subjectSelect.innerHTML = '<option value="">科目を選択</option>';
+        }
+      } catch (error) {
+        console.error('Failed to load subjects:', error);
+        subjectSelect.innerHTML = '<option value="">科目を選択</option>';
+      }
+    });
+
+    // 科目の新規追加切り替え
+    document.getElementById('toggleSubjectInput').addEventListener('click', function () {
+      const subjectSelect = document.getElementById('receiptSubject');
+      const subjectNew = document.getElementById('receiptSubjectNew');
+
+      if (subjectNew.style.display === 'none') {
+        // 新規入力モードに切り替え
+        subjectNew.style.display = 'block';
+        subjectNew.required = true;
+        subjectSelect.required = false;
+        subjectSelect.style.display = 'none';
+        this.textContent = '選択に戻る';
+      } else {
+        // 選択モードに切り替え
+        subjectNew.style.display = 'none';
+        subjectNew.required = false;
+        subjectSelect.required = true;
+        subjectSelect.style.display = 'block';
+        this.textContent = '新規追加';
+      }
+    });
+
+    // 購入目的の選択に応じて詳細入力欄を表示/非表示
+    document.getElementById('receiptPurpose').addEventListener('change', function () {
+      const purposeOtherDiv = document.getElementById('purposeOtherDiv');
+      const purposeOtherInput = document.getElementById('purposeOther');
+
+      if (this.value === 'その他') {
+        purposeOtherDiv.style.display = 'block';
+        purposeOtherInput.required = true;
+      } else {
+        purposeOtherDiv.style.display = 'none';
+        purposeOtherInput.required = false;
+        purposeOtherInput.value = ''; // 値をクリア
+      }
+    });
+
+    function closeReceiptUploadModal() {
+      document.getElementById('receiptUploadModal').classList.remove('show');
+      document.getElementById('receiptUploadForm').reset();
+      // 詳細入力欄も非表示に戻す
+      document.getElementById('purposeOtherDiv').style.display = 'none';
+      document.getElementById('purposeOther').required = false;
+    }
+
+    // レシート一覧モーダル関連
+    async function showReceiptListModal(requestId) {
+      // リクエストの状態を取得
+      const requestResponse = await fetch('/index.php?path=/api/requests');
+      const requestResult = await requestResponse.json();
+      let currentRequest = null;
+      if (requestResult.ok) {
+        currentRequest = requestResult.data.find(r => r.id == requestId);
+      }
+
+      const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipts`);
+      const j = await r.json();
+      if (!j.ok) {
+        alert('レシートの取得に失敗しました: ' + j.message);
+        return;
+      }
+
+      const receiptList = document.getElementById('receiptList');
+      if (j.data.length === 0) {
+        receiptList.innerHTML = '<p>レシートがありません</p>';
+      } else {
+        // 処理完了状態の場合のみ記入ボタンを表示（記入完了状態では非表示）
+        const showCompletionButtons = currentRequest && currentRequest.state === 'RECEIPT_DONE';
+
+        receiptList.innerHTML = j.data.map(receipt => `
+<div class="receipt-item">
+<div class="receipt-header">
+<div class="receipt-info">
+<strong>${receipt.kind}</strong> - ¥${parseFloat(receipt.total).toLocaleString()}
+${receipt.change_returned > 0 ? '<br/>お釣り: ¥' + parseFloat(receipt.change_returned).toLocaleString() : ''}
+</div>
+<div class="receipt-management-info">
+<span style="font-size: 11px; color: #666; background-color: #f0f0f0; padding: 2px 6px; border-radius: 3px;">
+${receipt.receipt_no || '未設定'}
+</span>
+</div>
+<div class="receipt-actions">
+${showCompletionButtons ? `
+<button onclick="toggleReceiptStatus(${receipt.id}, ${requestId}, ${receipt.is_completed ? 0 : 1})" 
+        class="${receipt.is_completed ? 'btn-success' : 'btn-warning'}" 
+        id="receipt-status-${receipt.id}">
+  ${receipt.is_completed ? '記入済み' : '未記入'}
+</button>` : ''}
+<button onclick="deleteReceipt(${requestId}, ${receipt.id})" class="btn-danger">削除</button>
+</div>
+</div>
+<div class="receipt-details">
+<div class="receipt-detail-row">
+<label>撮影日時:</label>
+<span>${receipt.taken_at}</span>
+</div>
+${receipt.event_name ? `
+<div class="receipt-detail-row">
+<label>行事:</label>
+<span>${receipt.event_name}</span>
+</div>` : ''}
+${receipt.subject ? `
+<div class="receipt-detail-row">
+<label>科目:</label>
+<span>${receipt.subject}</span>
+</div>` : ''}
+${receipt.purpose ? `
+<div class="receipt-detail-row">
+<label>購入目的:</label>
+<span>${receipt.purpose}</span>
+</div>` : ''}
+${receipt.payer ? `
+<div class="receipt-detail-row">
+<label>支払い者:</label>
+<span>${receipt.payer}</span>
+</div>` : ''}
+${receipt.receipt_date ? `
+<div class="receipt-detail-row">
+<label>レシート日付:</label>
+<span>${receipt.receipt_date}</span>
+</div>` : ''}
+${receipt.memo ? `
+<div class="receipt-detail-row">
+<label>メモ:</label>
+<span>${receipt.memo}</span>
+</div>` : ''}
+</div>
+</div>
+`).join('');
+      }
+
+      // 記入完了ボタンの表示制御
+      const completeAllBtn = document.getElementById('completeAllReceiptsBtn');
+      if (j.data.length > 0 && currentRequest && currentRequest.state === 'RECEIPT_DONE') {
+        // 全てのレシートが記入済みかチェック
+        const allCompleted = j.data.every(receipt => receipt.is_completed === 1);
+        if (allCompleted) {
+          completeAllBtn.style.display = 'inline-block';
+          completeAllBtn.setAttribute('data-request-id', requestId);
+        } else {
+          completeAllBtn.style.display = 'none';
+        }
+      } else {
+        completeAllBtn.style.display = 'none';
+      }
+
+      document.getElementById('receiptListModal').classList.add('show');
+    }
+
+    function closeReceiptListModal() {
+      document.getElementById('receiptListModal').classList.remove('show');
+    }
+
+    // 記入完了処理
+    async function completeAllReceipts() {
+      const completeBtn = document.getElementById('completeAllReceiptsBtn');
+      const requestId = completeBtn.getAttribute('data-request-id');
+
+      if (!requestId) {
+        alert('リクエストIDが取得できません');
+        return;
+      }
+
+      if (!confirm('全てのレシートの記入が完了しました。このリクエストを記入完了状態にしますか？')) {
+        return;
+      }
+
+      try {
+        // リクエストの状態を記入完了に変更
+        const response = await fetch(`/index.php?path=/api/requests/${requestId}/state`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ next_state: 'FINALIZED' })
+        });
+
+        const result = await response.json();
+        if (!result.ok) {
+          alert('記入完了の処理に失敗しました: ' + result.message);
+          return;
+        }
+
+        alert('記入完了処理が完了しました');
+        closeReceiptListModal();
+        load(); // 一覧を更新
+      } catch (error) {
+        console.error('Failed to complete all receipts:', error);
+        alert('エラーが発生しました');
+      }
+    }
+
+    // レシートの記入状態を切り替え
+    async function toggleReceiptStatus(receiptId, requestId, newStatus) {
+      try {
+        const response = await fetch(`/index.php?path=/api/requests/${requestId}/receipt-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            receipt_id: receiptId,
+            is_completed: newStatus
+          })
+        });
+
+        const result = await response.json();
+        if (!result.ok) {
+          alert('レシートの状態更新に失敗しました: ' + result.message);
+          return;
+        }
+
+        // ボタンの表示を更新
+        const button = document.getElementById(`receipt-status-${receiptId}`);
+        if (button) {
+          if (newStatus === 1) {
+            button.textContent = '記入済み';
+            button.className = 'btn-success';
+            button.onclick = () => toggleReceiptStatus(receiptId, requestId, 0);
+          } else {
+            button.textContent = '未記入';
+            button.className = 'btn-warning';
+            button.onclick = () => toggleReceiptStatus(receiptId, requestId, 1);
+          }
+        }
+
+        // 全てのレシートが記入済みになった場合、リクエスト一覧を更新
+        if (result.all_completed) {
+          alert('全てのレシートの記入が完了しました。リクエストが記入完了状態に変更されました。');
+          closeReceiptListModal();
+          load(); // 一覧を更新
+        }
+      } catch (error) {
+        console.error('Error updating receipt status:', error);
+        alert('レシートの状態更新に失敗しました');
+      }
+    }
+
+    // レシート処理モーダル関連
+    let currentProcessRequestId = null;
+
+    async function showReceiptProcessModal(requestId) {
+      currentProcessRequestId = requestId;
+      try {
+        // リクエスト情報を取得
+        const r = await fetch('/index.php?path=/api/requests&q=');
+        const j = await r.json();
+        if (!j.ok) {
+          alert('リクエスト情報の取得に失敗しました');
+          return;
+        }
+        const request = j.data.find(req => req.id == requestId);
+        if (!request) {
+          alert('リクエストが見つかりません');
+          return;
+        }
+
+        // レシート情報を取得
+        const receiptR = await fetch(`/index.php?path=/api/requests/${requestId}/receipts`);
+        const receiptJ = await receiptR.json();
+        if (!receiptJ.ok) {
+          alert('レシート情報の取得に失敗しました');
+          return;
+        }
+
+        const processedAmount = receiptJ.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+        const cashGiven = parseFloat(request.cash_given) || 0;
+
+        document.getElementById('receiptProcessInfo').innerHTML = `
+<div style="margin:10px 0;">
+<strong>渡し額:</strong> ¥${cashGiven.toLocaleString()}<br/>
+<strong>処理済み額:</strong> ¥${processedAmount.toLocaleString()}<br/>
+<strong>お釣り予定:</strong> ¥${(cashGiven - processedAmount).toLocaleString()}
+</div>
+`;
+
+        document.getElementById('changeAmount').value = Math.max(0, cashGiven - processedAmount);
+        document.getElementById('receiptProcessModal').classList.add('show');
+      } catch (e) {
+        console.error('Failed to show receipt process modal:', e);
+        alert('エラーが発生しました');
+      }
+    }
+
+    function closeReceiptProcessModal() {
+      document.getElementById('receiptProcessModal').classList.remove('show');
+      currentProcessRequestId = null;
+    }
+
+    // レシート処理完了
+    async function processReceipt() {
+      if (!currentProcessRequestId) return;
+
+      const changeAmount = parseFloat(document.getElementById('changeAmount').value) || 0;
+
+      try {
+        // リクエスト情報を取得
+        const r = await fetch('/index.php?path=/api/requests&q=');
+        const j = await r.json();
+        if (!j.ok) {
+          alert('リクエスト情報の取得に失敗しました');
+          return;
+        }
+        const request = j.data.find(req => req.id == currentProcessRequestId);
+        if (!request) {
+          alert('リクエストが見つかりません');
+          return;
+        }
+
+        // レシート情報を取得
+        const receiptR = await fetch(`/index.php?path=/api/requests/${currentProcessRequestId}/receipts`);
+        const receiptJ = await receiptR.json();
+        if (!receiptJ.ok) {
+          alert('レシート情報の取得に失敗しました');
+          return;
+        }
+
+        const processedAmount = receiptJ.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+        const cashGiven = parseFloat(request.cash_given) || 0;
+
+        // 検証: 処理済み額 + お釣り額 = 渡し額
+        if (Math.abs((processedAmount + changeAmount) - cashGiven) > 0.01) {
+          alert(`金額が一致しません。\n処理済み額: ¥${processedAmount.toLocaleString()}\nお釣り額: ¥${changeAmount.toLocaleString()}\n合計: ¥${(processedAmount + changeAmount).toLocaleString()}\n渡し額: ¥${cashGiven.toLocaleString()}`);
+          return;
+        }
+
+        // 状態を処理完了に変更
+        const stateR = await fetch(`/index.php?path=/api/requests/${currentProcessRequestId}/state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ next_state: 'RECEIPT_DONE' })
+        });
+        const stateJ = await stateR.json();
+        if (!stateJ.ok) {
+          alert('状態の更新に失敗しました: ' + stateJ.message);
+          return;
+        }
+
+        alert('レシート処理が完了しました');
+        closeReceiptProcessModal();
+        load(); // 一覧を更新
+      } catch (e) {
+        console.error('Failed to process receipt:', e);
+        alert('エラーが発生しました');
+      }
+    }
+
+
+    // レシート削除
+    async function deleteReceipt(requestId, receiptId) {
+      if (!confirm('このレシートを削除しますか？')) return;
+      const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipt/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receipt_id: receiptId })
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        alert('レシートの削除に失敗しました: ' + j.message);
+        return;
+      }
+      alert('レシートを削除しました');
+      showReceiptListModal(requestId); // 一覧を更新
+    }
+
+    // レシートアップロードフォーム送信
+    document.getElementById('receiptUploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const requestId = document.getElementById('uploadRequestId').value;
+
+      // デバッグログ追加
+      console.log('Receipt upload debug - Request ID:', requestId);
+
+      // 科目の値を取得（選択または新規入力）
+      const subjectSelect = document.getElementById('receiptSubject');
+      const subjectNew = document.getElementById('receiptSubjectNew');
+      const subjectValue = subjectNew.style.display !== 'none' ? subjectNew.value : subjectSelect.value;
+
+      // JSONデータとして送信
+      const requestData = {
+        total: parseFloat(document.getElementById('receiptTotal').value),
+        change_returned: 0, // 返却額は常に0
+        event_id: parseInt(document.getElementById('receiptEvent').value) || 0,
+        subject: subjectValue,
+        payer: document.getElementById('receiptPayer').value,
+        receipt_date: document.getElementById('receiptDate').value
+      };
+
+      // 購入目的の処理
+      const purpose = document.getElementById('receiptPurpose').value;
+      if (purpose === 'その他') {
+        const purposeOther = document.getElementById('purposeOther').value;
+        if (purposeOther.trim() === '') {
+          alert('その他を選択した場合は詳細を入力してください。');
+          return;
+        }
+        requestData.purpose = purposeOther; // 詳細内容を購入目的として送信
+      } else {
+        requestData.purpose = purpose;
+      }
+
+      // リクエストデータの内容をデバッグ出力
+      console.log('Receipt upload debug - Request data:', requestData);
+
+      console.log('Receipt upload debug - Sending request to:', `/index.php?path=/api/requests/${requestId}/receipt`);
+
+      const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      console.log('Receipt upload debug - Response status:', r.status);
+      console.log('Receipt upload debug - Response headers:', Object.fromEntries(r.headers.entries()));
+
+      const j = await r.json();
+      console.log('Receipt upload debug - Response JSON:', j);
+
+      if (!j.ok) {
+        console.error('Receipt upload debug - Upload failed:', j.message);
+        alert('レシートのアップロードに失敗しました: ' + j.message);
+        return;
+      }
+      alert('レシートをアップロードしました');
+
+      // 処理済み額を更新
+      await loadProcessedAmount(requestId);
+
+      // レシート一覧を更新（開いている場合）
+      const receiptListModal = document.getElementById('receiptListModal');
+      if (receiptListModal.classList.contains('show')) {
+        showReceiptListModal(requestId);
+      }
+
+      // メインの一覧を更新
+      load();
+    });
+
+    // 処理済み額を取得して表示する関数
+    async function loadProcessedAmount(requestId) {
+      try {
+        const r = await fetch(`/index.php?path=/api/requests/${requestId}/receipts`);
+        const j = await r.json();
+        if (j.ok) {
+          const totalAmount = j.data.reduce((sum, receipt) => sum + parseFloat(receipt.total), 0);
+          const processedElement = document.getElementById(`processed_amount_${requestId}`);
+          if (processedElement) {
+            processedElement.textContent = '¥' + totalAmount.toLocaleString();
+          }
+        }
+      } catch (error) {
+        console.error('Load processed amount error:', error);
+      }
+    }
+
+    // テーマに応じてロゴを切り替える関数
+    function updateBannerLogo() {
+      const logo = document.getElementById('banner-logo');
+      const isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+      if (isDarkTheme) {
+        logo.src = '../assets/logo-wh.png'; // ダークテーマ時は白いロゴ
+      } else {
+        logo.src = '../assets/logo-bl.png'; // ライトテーマ時は黒いロゴ
+      }
+    }
+
+    // ログアウト機能
+    async function logout() {
+      try {
+        await fetch('/index.php?path=/api/auth/logout', { method: 'POST' });
+        location.href = '/pages/login.html';
+      } catch (e) {
+        console.error('Logout failed:', e);
+        location.href = '/pages/login.html';
+      }
+    }
+
+
+    // ページ読み込み時にロゴを設定
+    document.addEventListener('DOMContentLoaded', updateBannerLogo);
+
+    // テーマ変更を監視
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateBannerLogo);
+
+    // nanashi-mumei.gif モーダル機能
+    document.addEventListener('DOMContentLoaded', function () {
+      const mumeiGif = document.getElementById('nanashi-mumei-gif');
+      const mumeiModal = document.getElementById('mumei-modal');
+      const mumeiModalImg = document.getElementById('mumei-modal-img');
+
+      if (mumeiGif && mumeiModal && mumeiModalImg) {
+        mumeiGif.addEventListener('click', function (e) {
+          e.stopPropagation();
+          mumeiModal.classList.add('active');
+        });
+
+        mumeiModal.addEventListener('click', function () {
+          mumeiModal.classList.remove('active');
+        });
+      }
+    });
+  </script>
+  <style>
+    .mumei-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .mumei-modal.active {
+      display: flex;
+    }
+
+    .mumei-modal img {
+      height: 600px;
+      width: auto;
+      pointer-events: none;
+    }
+  </style>
+  <div id="mumei-modal" class="mumei-modal">
+    <img id="mumei-modal-img" src="../assets/nanashi-mumei.gif" alt="Nanashi Mumei">
+  </div>
+  <footer class="page-footer">
+    <div class="footer-content">
+      <img src="../assets/RyoyuLogo.png" alt="寮友会ロゴ" class="footer-logo">
+      <div class="footer-text">© 千葉工業大学寮友会執行役員会 / 財務管理システム - Lotus</div>
+    </div>
+  </footer>
+</body>
+
+</html>

@@ -1,0 +1,1473 @@
+/* =========================================
+   Lotus - Shared Modern Styles
+   (login / finance / admin / officer)
+   ========================================= */
+
+/* 1) CSS Reset (modern minimal) */
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body,h1,h2,h3,h4,p,figure,blockquote,dl,dd{margin:0}
+ul[role='list'],ol[role='list']{list-style:none}
+img,svg,video,canvas{display:block;max-width:100%}
+input,button,textarea,select{font:inherit;color:inherit}
+button{border:none;background:none;cursor:pointer}
+
+/* 2) Mobile-first responsive design */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .container {
+    padding: 8px;
+    max-width: 100%;
+  }
+  
+  .admin-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .admin-card {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .admin-card h2 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+  
+  .form-group {
+    margin-bottom: 12px;
+  }
+  
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px; /* iOS zoom prevention */
+  }
+  
+  .form-group button {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    min-height: 44px; /* iOS touch target */
+  }
+  
+  table {
+    font-size: 12px;
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+  }
+  
+  table th,
+  table td {
+    padding: 6px 4px;
+    min-width: 80px;
+  }
+  
+  .btn-primary,
+  .btn-success,
+  .btn-info,
+  .btn-danger,
+  .btn-warning {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 8px;
+    font-size: 16px;
+    min-height: 44px;
+  }
+  
+  .backup-item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .backup-item > div:first-child {
+    margin-bottom: 8px;
+  }
+  
+  .backup-item > div:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .backup-item button {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+  }
+  
+  .modal {
+    width: 95%;
+    max-width: 95%;
+    margin: 20px auto;
+    padding: 16px;
+  }
+  
+  .modal-content {
+    padding: 16px;
+  }
+  
+  .modal h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+  }
+  
+  .modal .form-group {
+    margin-bottom: 16px;
+  }
+  
+  .modal button {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .request-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .request-actions button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+  }
+  
+  .admin-card table {
+    font-size: 11px;
+  }
+  
+  .admin-card table th,
+  .admin-card table td {
+    padding: 4px 2px;
+    min-width: 60px;
+  }
+  
+  /* ファイルアップロード */
+  input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px;
+  }
+  
+  /* 日付入力 */
+  input[type="date"] {
+    width: 100%;
+    padding: 8px;
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+  
+  /* 検索ボタン */
+  #search_backups {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    margin-top: 8px;
+  }
+  
+  /* バックアップ一覧 */
+  #backup_list {
+    margin-top: 16px;
+  }
+  
+  /* パスワード変更フォーム */
+  .admin-card input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  /* 危険ボタン */
+  .danger-button {
+    background-color: var(--danger);
+    color: white;
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+}
+
+/* 3) Tablet adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .admin-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  
+  .admin-card {
+    padding: 16px;
+  }
+  
+  table {
+    font-size: 13px;
+  }
+  
+  .form-group button {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
+
+/* 4) Desktop optimizations */
+@media (min-width: 1025px) {
+  .admin-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  
+  .admin-card {
+    padding: 20px;
+  }
+  
+  table {
+    font-size: 14px;
+  }
+  
+  .form-group button {
+    padding: 12px 20px;
+    font-size: 16px;
+  }
+}
+
+/* 2) Theme tokens */
+:root{
+  --bg: #0b0f14;
+  --panel: #121821;
+  --panel-2:#0f141c;
+  --text: #e7edf5;
+  --muted:#9fb0c3;
+  --border:#213042;
+  --brand:#4ea1ff;
+  --brand-2:#2c7be5;
+  --accent:#7bd389;
+  --danger:#ff6b6b;
+  --warn:#ffb020;
+  --warning:#ffb020;
+  --info:#17a2b8;
+  --success:#28a745;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --radius: 14px;
+  --radius-sm:10px;
+  --gap: 16px;
+  --gap-lg: 28px;
+  --focus-ring: 0 0 0 3px rgba(78,161,255,.35);
+}
+
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f6f8fb;
+    --panel:#ffffff;
+    --panel-2:#f9fbff;
+    --text:#182230;
+    --muted:#55657a;
+    --border:#d8e1ee;
+    --brand:#2c7be5;
+    --brand-2:#1b66d1;
+    --accent:#17a673;
+    --danger:#e65054;
+    --warn:#d59600;
+    --warning:#d59600;
+    --info:#17a2b8;
+    --success:#28a745;
+    --shadow:0 8px 24px rgba(16,24,40,.06);
+  }
+}
+
+/* 3) Base layout & typography */
+body{
+  background: radial-gradient(1200px 800px at 10% -10%, rgba(46,87,173,.14), transparent 50%),
+              radial-gradient(1200px 800px at 110% 10%, rgba(43,214,118,.10), transparent 50%),
+              var(--bg);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: 100% 100%;
+  color:var(--text);
+  font: 15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  letter-spacing:.2px;
+}
+
+main,.container{
+  width:min(1100px, calc(100% - 32px));
+  margin-inline:auto;
+  padding: clamp(18px, 3vw, 28px);
+}
+
+h1{
+  font-size: clamp(22px, 2.2vw + 14px, 32px);
+  font-weight:800;
+  letter-spacing:.3px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+h2{
+  font-size: clamp(18px, 1.2vw + 12px, 22px);
+  font-weight:700;
+  margin: 20px 0 10px;
+  text-align: center;
+}
+
+/* 4) Card / Section */
+section, .card{
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(14px, 2.5vw, 22px);
+  margin: 12px 0;
+}
+.grid{
+  display:grid;
+  gap:var(--gap);
+}
+@media(min-width:880px){
+  .grid.cols-2{grid-template-columns:1fr 1fr}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+}
+
+/* 5) Inputs */
+.input, input[type="text"], input[type="number"], input[type="password"],
+select, textarea{
+  width: min(520px, 100%);
+  background: color-mix(in oklab, var(--panel), #000 6%);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: none;
+  transition: box-shadow .15s ease, border-color .15s ease, background .15s;
+}
+select{padding-right:34px}
+input::placeholder, textarea::placeholder{color: color-mix(in oklab, var(--muted), #fff 8%)}
+input:focus, select:focus, textarea:focus{box-shadow: var(--focus-ring);border-color: var(--brand)}
+
+/* 日付入力欄のダークテーマ対応 */
+input[type="date"] {
+    color-scheme: light dark;
+}
+
+/* ダークテーマ時の日付入力欄のカレンダーアイコン */
+@media (prefers-color-scheme: dark) {
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+    }
+    
+    input[type="date"]::-webkit-datetime-edit-text,
+    input[type="date"]::-webkit-datetime-edit-month-field,
+    input[type="date"]::-webkit-datetime-edit-day-field,
+    input[type="date"]::-webkit-datetime-edit-year-field {
+        color: white;
+    }
+}
+
+/* 状態バッジのスタイル */
+.state-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 80px;
+    text-align: center;
+}
+
+.state-NEW {
+    background-color: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.state-ACCEPTED {
+    background-color: #e0f2fe;
+    color: #0277bd;
+    border: 1px solid #81d4fa;
+}
+
+.state-CASH_GIVEN {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fbbf24;
+}
+
+.state-COLLECTED {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    border: 1px solid #a5b4fc;
+}
+
+.state-RECEIPT_DONE {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffcc02;
+}
+
+.state-FINALIZED {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+.state-REJECTED {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+
+.state-CASH_WITHDRAWN {
+    background-color: #f3e8ff;
+    color: #7c3aed;
+    border: 1px solid #c4b5fd;
+}
+
+.state-PAID {
+    background-color: #ecfdf5;
+    color: #047857;
+    border: 1px solid #6ee7b7;
+}
+
+.state-TRANSFERRED {
+    background-color: #f0f9ff;
+    color: #0c4a6e;
+    border: 1px solid #7dd3fc;
+}
+
+/* Inline form rows */
+.form-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label{display:inline-flex;align-items:center;gap:8px;color:var(--muted); text-align: center;}
+
+/* 6) Buttons */
+.btn, button, input[type="submit"]{
+  --btn-bg: var(--brand);
+  --btn-bg-hover: var(--brand-2);
+  --btn-text: #fff;
+  --btn-border: transparent;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border:1px solid var(--btn-border);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: transform .06s ease, background .15s ease, box-shadow .15s ease, opacity .15s;
+}
+.btn:hover, button:hover{background:var(--btn-bg-hover)}
+.btn:active, button:active{transform: translateY(1px)}
+.btn.ghost{
+  --btn-bg: transparent; --btn-text: var(--brand); --btn-border: var(--border);
+  background: transparent;
+}
+.btn.warn{--btn-bg: var(--warn)}
+.btn.danger{--btn-bg: var(--danger)}
+.btn.muted{
+  --btn-bg: color-mix(in oklab, var(--panel), #000 6%);
+  --btn-text: var(--text);
+  --btn-border: var(--border);
+}
+
+/* 7) Tables (finance list, etc.) */
+table{
+  width:100%;
+  border-collapse: collapse;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  overflow:hidden;
+  box-shadow: var(--shadow);
+}
+thead th{
+  text-align:left;
+  font-weight:800;
+  font-size:13px;
+  color:var(--muted);
+  letter-spacing:.3px;
+  padding:12px 14px;
+  background: color-mix(in oklab, var(--panel), #000 8%);
+  border-bottom:1px solid var(--border);
+}
+tbody td{
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  vertical-align: top;
+}
+tbody tr:hover{background: color-mix(in oklab, var(--panel), #000 6%)}
+tbody tr:last-child td{border-bottom:none}
+
+/* 8) Status badge (maps to state values) */
+.badge{
+  display:inline-block;
+  padding:6px 12px;
+  border-radius: 20px;
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.3px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+/* 状態バッジの色 - より明確で視認性の高い色に変更 */
+.badge.NEW{background: #3b82f6; color: white; font-weight: 600;} /* 青 - 新規・未処理 */
+.badge.ACCEPTED{background: #10b981; color: white; font-weight: 600;} /* 緑 - 受理済み */
+.badge.CASH_GIVEN{background: #f59e0b; color: white; font-weight: 600;} /* オレンジ - 現金渡し済み */
+.badge.COLLECTED{background: #8b5cf6; color: white; font-weight: 600;} /* 紫 - 回収済み */
+.badge.RECEIPT_DONE{background: #059669; color: white; font-weight: 600;} /* 深緑 - 処理完了 */
+.badge.REJECTED{background: #ef4444; color: white; font-weight: 600;} /* 赤 - 却下 */
+.badge.CASH_WITHDRAWN{background: #f97316; color: white; font-weight: 600;} /* 濃いオレンジ - 下ろし済み */
+.badge.PAID{background: #7c3aed; color: white; font-weight: 600;} /* 濃い紫 - 支払い済み */
+.badge.TRANSFERRED{background: #dc2626; color: white; font-weight: 600;} /* 濃い赤 - 振込済み */
+
+/* 9) Inline notifications (officer page) */
+.notification{
+  position: fixed; top:20px; right:20px; z-index:1000;
+  padding:14px 16px; border-radius: 12px; color:#fff; font-weight:800;
+  box-shadow: var(--shadow); transform: translateX(30px); opacity:0;
+  transition: transform .25s ease, opacity .25s ease;
+}
+.notification.show{transform:none;opacity:1}
+.notification.success{background: var(--accent)}
+.notification.error{background: var(--danger)}
+.notification.info{background: var(--brand-2)}
+
+/* 10) Modal primitives (finance/admin modals use #...Modal) */
+[id$="Modal"]{
+  position:fixed; inset:0; display:none;
+  background: color-mix(in oklab, #000, transparent 55%);
+  z-index:1000;
+}
+[id$="Modal"].show{display:block}
+[id$="Modal"] > div{
+  position:absolute; top:50%; left:50%;
+  transform: translate(-50%,-50%);
+  background: var(--panel);
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  min-width: min(680px, 92vw);
+  max-height: 80vh;
+  overflow:auto;
+}
+
+/* 11) Helper utilities */
+.m-0{margin:0}.mt-1{margin-top:6px}.mt-2{margin-top:12px}.mt-3{margin-top:18px}
+.mb-1{margin-bottom:6px}.mb-2{margin-bottom:12px}.mb-3{margin-bottom:18px}
+.flex{display:flex}.items-center{align-items:center}.justify-between{justify-content:space-between}
+.gap-1{gap:8px}.gap-2{gap:12px}.gap-3{gap:16px}
+.text-right{text-align:right}.text-muted{color:var(--muted)}
+.hidden{display:none !important}
+
+/* 12) Form layout niceties */
+form{display:grid; gap:12px}
+form .inline{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+
+/* 13) Header band (optional) */
+.header{
+  margin-bottom: 10px;
+  padding:14px 18px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--panel), #000 8%), var(--panel));
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  display:flex; align-items:center; justify-content:space-between;
+}
+
+/* 14) Input group with button */
+.input-group{display:flex; gap:8px; flex-wrap:wrap}
+.input-group .input{flex:1 1 220px}
+
+/* 15) Footer spacing */
+footer{color:var(--muted); font-size:12px; padding:14px 0}
+
+/* 16) Focus visibility for keyboard users */
+:focus-visible{outline:none; box-shadow: var(--focus-ring)}
+
+/* 17) Print tweaks (for excel preview or details) */
+@media print{
+  body{background:#fff; color:#000}
+  .btn, .header, .notification, [id$="Modal"]{display:none !important}
+  section, .card, table{box-shadow:none; border-color:#ccc}
+}
+
+/* 18) Nice entrance animation for first paint */
+@media (prefers-reduced-motion: no-preference){
+  body{animation:fadeIn .25s ease both}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(4px)}}
+}
+
+/* ===== Login page specific tweaks ===== */
+.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh; /* 画面中央に配置 */
+    text-align: center;
+  }
+  
+   .logo-container {
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     margin-bottom: 32px;
+   }
+   
+   .logo {
+     max-width: 200px;
+     height: auto;
+     margin-bottom: 16px;
+     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+     transition: transform 0.3s ease;
+   }
+   
+   .logo:hover {
+     transform: scale(1.05);
+   }
+   
+   .login-page h2 {
+     font-size: clamp(24px, 3vw + 12px, 32px);
+     font-weight: 700;
+     margin: 0;
+     color: var(--text);
+   }
+  
+   .login-page form {
+     display: grid;
+     gap: 20px;  /* 要素ごとの隙間 */
+     max-width: 340px;
+     margin-inline: auto;
+     margin-bottom: 20px;  /* ボタンとの間隔 */
+   }
+  
+  .login-page label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .login-page .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+   /* ===== Officer page tweaks ===== */
+.officer-page {
+    min-height: 100vh;
+    text-align: center;
+  }
+  
+  .officer-page .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 24px;
+    min-height: calc(100vh - 80px); /* バナーの高さを考慮 */
+  }
+  
+  .submission-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .submission-card h3 {
+    margin: 0 0 20px 0;
+    color: var(--text);
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+  }
+  
+  .officer-page form {
+    display: grid;
+    gap: 18px;
+    width: 100%;
+  }
+  
+  .officer-page label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;   /* 部署と氏名を折り返さない */
+  }
+  
+  .officer-page .btn-submit {
+    padding: 10px 28px;    /* 横幅を大きすぎず調整 */
+    min-width: 140px;
+    justify-self: center;  /* 中央寄せ */
+  }
+  
+  /* ===== Submission History Styles ===== */
+  
+  .history-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  
+  .history-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    font-weight: 600;
+  }
+  
+  .history-controls select {
+    padding: 6px 12px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  
+  .history-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 16px;
+  }
+  
+  .history-item {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+  }
+  
+  .history-item:hover {
+    background: color-mix(in oklab, var(--panel-2), #000 5%);
+    border-color: var(--accent);
+  }
+  
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  
+  .history-request-no {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 16px;
+  }
+  
+  .history-date {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  
+  .history-summary {
+    color: var(--text);
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  
+  .history-details {
+    margin-top: 8px;
+  }
+  
+  .history-status {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+  }
+  
+  .history-status .badge {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
+  
+/* ===== Modal styles for dark theme ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: none;
+}
+
+.modal-overlay.show {
+  display: block;
+}
+
+.modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--panel);
+  color: var(--text);
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content h3 {
+  margin: 0 0 20px 0;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.modal-content label {
+  display: block;
+  margin: 12px 0 6px 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.modal-content input,
+.modal-content select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.modal-buttons {
+  text-align: right;
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.modal-buttons button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-buttons button[type="button"] {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.modal-buttons button[type="button"]:hover {
+  background: var(--border);
+}
+
+.modal-buttons button[type="submit"] {
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent);
+}
+
+.modal-buttons button[type="submit"]:hover {
+  background: color-mix(in oklab, var(--accent), #000 10%);
+}
+
+/* ===== Page Banner for non-login pages ===== */
+.page-banner {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.banner-logo {
+  max-width: 40px;
+  height: auto;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.banner-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.banner-spacer {
+  flex: 1;
+}
+
+.banner-logout {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.banner-logout:hover {
+  background: var(--border);
+}
+
+/* ===== Footer for all pages ===== */
+.page-footer {
+  margin-top: auto;
+  padding: 2rem 1rem;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.footer-logo {
+  height: 40px;
+  width: auto;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.footer-logo:hover {
+  opacity: 1;
+}
+
+.footer-text {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Ensure body has flex layout for footer positioning */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main, .container {
+  flex: 1;
+}
+
+/* Login page specific layout */
+.login-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.login-page .container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: min(1100px, calc(100% - 32px));
+  margin-inline: auto;
+  padding: clamp(18px, 3vw, 28px);
+}
+
+/* Login page footer should span full width */
+.login-page .page-footer {
+  width: 100%;
+  margin: 0;
+  padding: 2rem 1rem;
+}
+
+/* Login form layout - responsive */
+.login-page form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+@media (min-width: 600px) {
+  .login-page form {
+    flex-direction: row;
+    max-width: 600px;
+    align-items: end;
+  }
+  
+  .login-page form label {
+    flex: 1;
+  }
+}
+
+/* ===== Finance page search controls ===== */
+.finance-search-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  justify-content: flex-start;
+}
+
+.finance-search-controls input[type="text"] {
+  width: 300px;
+  max-width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.finance-search-controls button {
+  padding: 0.75rem 1.5rem;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.finance-search-controls button:hover {
+  background: var(--brand-2);
+}
+
+@media (max-width: 768px) {
+  .finance-search-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .finance-search-controls input[type="text"] {
+    width: 100%;
+  }
+}
+
+/* Updated: 2025-01-02 - Lotus branding and login page improvements */
+
+/* Admin page layout */
+.admin-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+@media (min-width: 768px) {
+    .admin-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1200px) {
+    .admin-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+    }
+}
+
+.admin-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.admin-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.admin-card h2 {
+    margin: 0 0 1rem 0;
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 0.5rem;
+}
+
+.admin-card .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.admin-card .form-group input,
+.admin-card .form-group select {
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.admin-card .form-group button {
+    padding: 0.5rem 1rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.admin-card .form-group button:hover {
+    background: var(--primary-hover);
+}
+
+.danger-button {
+    background: #ff6b6b !important;
+    color: white !important;
+}
+
+.danger-button:hover {
+    background: #ff5252 !important;
+}
+
+.full-width-section {
+    max-width: 1400px;
+    margin: 2rem auto 0;
+    padding: 0 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.full-width-section h2 {
+    margin: 0 0 1rem 0;
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 0.5rem;
+}
+
+.request-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    align-items: center;
+}
+
+.request-actions button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.request-actions button:first-child {
+    background: var(--secondary);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.request-actions button:first-child:hover {
+    background: var(--secondary-hover);
+}
+
+@media (max-width: 768px) {
+    .request-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .request-actions button {
+        width: 100%;
+    }
+}
+
+/* Receipt list modal styles */
+.receipt-item {
+    border: 1px solid var(--border);
+    margin: 0.5rem 0;
+    padding: 1rem;
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.receipt-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.receipt-info {
+    flex: 1;
+}
+
+.btn-secondary {
+    padding: 0.4rem 0.8rem;
+    background: var(--secondary);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-secondary:hover {
+    background: var(--secondary-hover);
+}
+
+.btn-danger {
+    padding: 0.4rem 0.8rem;
+    background: #ff4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-danger:hover {
+    background: #ff3333;
+}
+
+/* Master item styles */
+.master-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    border-radius: 6px;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+}
+
+.master-item span {
+    color: var(--text);
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+/* Receipt list styles */
+.receipt-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: var(--panel);
+}
+
+.receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.receipt-management-info {
+    margin-left: 1rem;
+    flex-shrink: 0;
+}
+
+.receipt-info {
+    color: var(--text);
+    font-size: 1rem;
+}
+
+.receipt-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.receipt-details {
+    margin-bottom: 1rem;
+}
+
+.receipt-detail-row {
+    display: flex;
+    margin: 0.5rem 0;
+    align-items: center;
+}
+
+.receipt-detail-row label {
+    font-weight: 600;
+    color: var(--muted);
+    min-width: 120px;
+    margin-right: 1rem;
+}
+
+.receipt-detail-row span {
+    color: var(--text);
+    flex: 1;
+}
+
+.receipt-image {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.receipt-image label {
+    display: block;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+}
+
+.receipt-preview {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.receipt-preview:hover {
+    transform: scale(1.02);
+}
+
+.receipt-no-image {
+    padding: 2rem;
+    text-align: center;
+    color: var(--muted);
+    background: var(--panel-2);
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+}
+
+.btn-primary {
+    background: var(--primary) !important;
+    color: white !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover) !important;
+}
+
+/* Backup list styles */
+.backup-list {
+    margin-top: 1rem;
+}
+
+.backup-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 0.5rem 0;
+    background: var(--card-bg);
+    gap: 1rem;
+}
+
+.backup-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.backup-info {
+    flex: 1;
+    color: var(--text);
+}
+
+@media (max-width: 768px) {
+    .backup-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .backup-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+.receipt-info {
+    display: flex;
+    align-items: center;
+}
+
+/* 記入状態ボタン */
+.btn-warning {
+    background: #ffc107 !important;
+    color: #000 !important;
+    border: 1px solid #ffc107 !important;
+}
+
+.btn-warning:hover {
+    background: #e0a800 !important;
+    border-color: #d39e00 !important;
+}
+
+.btn-success {
+    background: #28a745 !important;
+    color: #fff !important;
+    border: 1px solid #28a745 !important;
+}
+
+.btn-success:hover {
+    background: #218838 !important;
+    border-color: #1e7e34 !important;
+}

@@ -1,0 +1,28 @@
+# System files
+.DS_Store
+Thumbs.db
+*.log
+
+# Environment configuration
+.env
+
+# Dependencies
+/vendor
+
+# User content & Backups
+/storage/uploads/*
+/backups/*
+!/storage/uploads/.gitkeep
+!/backups/.gitkeep
+
+# IDE Settings
+.idea/
+.vscode/
+
+# Temporary / Debug scripts
+debug_*.php
+reset_passwords.php
+fix_storaged_column.php
+seed_passwords.sql
+generate_hashes.php
+launch.php

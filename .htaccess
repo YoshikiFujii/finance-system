@@ -1,0 +1,54 @@
+# --- 基本 ---
+RewriteEngine On
+RewriteBase /
+
+# CORSヘッダーの設定
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+# OPTIONSリクエストの処理
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# ルートアクセス時は pages/login.html を表示（URLはそのまま）
+RewriteCond %{REQUEST_URI} ^/$
+RewriteRule ^$ pages/login.html [L]
+
+# 各ページへのショートカット
+RewriteRule ^login$ pages/login.html [L]
+RewriteRule ^admin$ pages/admin.html [L]
+RewriteRule ^officer$ pages/officer.html [L]
+RewriteRule ^finance$ pages/finance.html [L]
+RewriteRule ^audit$ pages/audit.html [L]
+
+# API だけ index.php に集約（フロントコントローラ）
+RewriteRule ^api/(.*)$ index.php?path=/api/$1 [QSA,L]
+
+# --- セキュリティ ---
+# app 配下のPHP/設定ファイルに直接アクセスさせない
+RewriteRule ^app/ - [F,L]
+
+# .env や隠しファイルをブロック
+RewriteRule (^|/)\.env - [F]
+RewriteRule (^|/)\.git - [F]
+
+# vendor 直実行の抑止（必要なら）
+RewriteRule ^vendor/ - [F]
+
+# ディレクトリ一覧の抑止
+Options -Indexes
+
+# --- 任意: アップロードの直リンク禁止（推奨） ---
+RewriteRule ^storage/uploads/ - [F]
+
+# --- 任意: 静的キャッシュ ---
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>
+Header set Cache-Control "public, max-age=604800" "expr=%{REQUEST_FILENAME} -strmatch '*.css' || %{REQUEST_FILENAME} -strmatch '*.js'"
