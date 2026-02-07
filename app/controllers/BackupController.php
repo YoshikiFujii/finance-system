@@ -102,7 +102,12 @@ class BackupController
                         $cfg['db']['name']
                     ),
                     $cfg['db']['user'],
-                    $cfg['db']['pass']
+                    $cfg['db']['pass'],
+                    [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                    ]
                 );
                 $debug_info[] = "Database connection successful";
 
@@ -439,7 +444,12 @@ class BackupController
                     $cfg['db']['name']
                 ),
                 $cfg['db']['user'],
-                $cfg['db']['pass']
+                $cfg['db']['pass'],
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                ]
             );
 
             // 復元前に現在のデータをバックアップ（安全のため）
@@ -571,7 +581,12 @@ class BackupController
                     $cfg['db']['name']
                 ),
                 $cfg['db']['user'],
-                $cfg['db']['pass']
+                $cfg['db']['pass'],
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                ]
             );
 
             // 復元前に現在のデータをバックアップ（安全のため）
@@ -675,7 +690,12 @@ class BackupController
                     $cfg['db']['name']
                 ),
                 $cfg['db']['user'],
-                $cfg['db']['pass']
+                $cfg['db']['pass'],
+                [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                ]
             );
 
             $backup_content = "-- Lotus Purchase Request Backup\n";

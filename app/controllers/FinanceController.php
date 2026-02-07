@@ -1157,6 +1157,22 @@ class FinanceController
             $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
             $result['tables'] = $tables;
 
+            // データベースの文字セット情報
+            $dbCharset = $pdo->query("
+                SELECT default_character_set_name, default_collation_name 
+                FROM information_schema.SCHEMATA 
+                WHERE schema_name = DATABASE()
+            ")->fetch(PDO::FETCH_ASSOC);
+            $result['database_charset'] = $dbCharset;
+
+            // 各テーブルの文字セット情報
+            $tableCharsets = $pdo->query("
+                SELECT table_name, table_collation 
+                FROM information_schema.TABLES 
+                WHERE table_schema = DATABASE()
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            $result['table_charsets'] = $tableCharsets;
+
             // finance_logsテーブルの構造
             if (in_array('finance_logs', $tables)) {
                 $structureStmt = $pdo->query("DESCRIBE finance_logs");

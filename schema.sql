@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS `departments` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL,
     `is_active` TINYINT(1) DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. Members Master
 CREATE TABLE IF NOT EXISTS `members` (
@@ -16,27 +16,27 @@ CREATE TABLE IF NOT EXISTS `members` (
     `department_id` INT NOT NULL,
     `is_active` TINYINT(1) DEFAULT 1,
     FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Events Master
 CREATE TABLE IF NOT EXISTS `events` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL,
     `is_active` TINYINT(1) DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Accounting Periods Master
 CREATE TABLE IF NOT EXISTS `accounting_periods` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(255) NOT NULL,
     `is_active` TINYINT(1) DEFAULT 1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Passwords (for Role-based Auth)
 CREATE TABLE IF NOT EXISTS `passwords` (
     `role` VARCHAR(50) PRIMARY KEY,
     `pass_hash` VARCHAR(255) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Initial password setup (example only - should be changed)
 -- INSERT IGNORE INTO `passwords` (`role`, `pass_hash`) VALUES ('ADMIN', '$2y$10$...'); 
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS `requests` (
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (`member_id`) REFERENCES `members`(`id`) ON DELETE RESTRICT,
     FOREIGN KEY (`department_id`) REFERENCES `departments`(`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 7. Receipts
 CREATE TABLE IF NOT EXISTS `receipts` (
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS `receipts` (
     FOREIGN KEY (`request_id`) REFERENCES `requests`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`event_id`) REFERENCES `events`(`id`) ON DELETE SET NULL,
     FOREIGN KEY (`accounting_period_id`) REFERENCES `accounting_periods`(`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 8. Audit Logs
 CREATE TABLE IF NOT EXISTS `audit_logs` (
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
     `action` VARCHAR(50),
     `detail` TEXT,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 9. Funds (Current Balance Snapshot)
 CREATE TABLE IF NOT EXISTS `funds` (
@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `funds` (
     `cash_on_hand` DECIMAL(15, 2) DEFAULT 0,
     `actual_cash_on_hand` DECIMAL(15, 2) DEFAULT 0,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Initialize funds if empty
 INSERT IGNORE INTO `funds` (`id`, `bank_balance`, `cash_on_hand`) VALUES (1, 0, 0);
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS `finance_logs` (
     `amount` DECIMAL(15, 2) NOT NULL,
     `action` VARCHAR(50) NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 11. Fund Logs (More detailed logs including description)
 CREATE TABLE IF NOT EXISTS `fund_logs` (
@@ -127,7 +127,7 @@ CREATE TABLE IF NOT EXISTS `fund_logs` (
     `amount` DECIMAL(15, 2) NOT NULL,
     `description` TEXT,
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 12. Income Records
 CREATE TABLE IF NOT EXISTS `income_records` (
@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS `income_records` (
     `amount` DECIMAL(10, 2) NOT NULL,
     `description` TEXT NOT NULL,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Request Items (Optional/Unused but referenced in backups)
 CREATE TABLE IF NOT EXISTS `request_items` (
@@ -145,6 +145,6 @@ CREATE TABLE IF NOT EXISTS `request_items` (
     `amount` DECIMAL(10, 2),
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (`request_id`) REFERENCES `requests`(`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
