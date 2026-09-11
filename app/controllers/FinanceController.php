@@ -614,14 +614,45 @@ class FinanceController
             $columnCheck = $pdo->query("SHOW COLUMNS FROM receipts LIKE 'deleted_at'");
             $hasDeletedAt = $columnCheck->rowCount() > 0;
 
-            error_log("receipts table has deleted_at column: " . ($hasDeletedAt ? 'yes' : 'no'));
+            // year_idカラムの存在確認
+            $yearColumnCheck = $pdo->query("SHOW COLUMNS FROM receipts LIKE 'year_id'");
+            $hasYearId = $yearColumnCheck->rowCount() > 0;
 
-            // deleted_atカラムがある場合は条件を追加、ない場合は全件取得
-            if ($hasDeletedAt) {
-                $stmt = $pdo->query("SELECT COALESCE(SUM(total), 0) as total FROM receipts WHERE deleted_at IS NULL");
-            } else {
-                $stmt = $pdo->query("SELECT COALESCE(SUM(total), 0) as total FROM receipts");
+            // アクティブな年度を取得
+            $activeYearId = null;
+            if ($hasYearId) {
+                try {
+                    $yearStmt = $pdo->query("SELECT id FROM years WHERE is_active=1 LIMIT 1");
+                    $activeYear = $yearStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($activeYear) {
+                        $activeYearId = $activeYear['id'];
+                    }
+                } catch (Exception $e) {
+                    // ignore
+                }
             }
+
+            error_log("receipts table has deleted_at column: " . ($hasDeletedAt ? 'yes' : 'no') . ", activeYearId: " . $activeYearId);
+
+            $whereClauses = [];
+            $params = [];
+
+            if ($hasDeletedAt) {
+                $whereClauses[] = "deleted_at IS NULL";
+            }
+            if ($hasYearId && $activeYearId) {
+                $whereClauses[] = "year_id = ?";
+                $params[] = $activeYearId;
+            }
+
+            $whereSql = "";
+            if (!empty($whereClauses)) {
+                $whereSql = "WHERE " . implode(" AND ", $whereClauses);
+            }
+
+            $sql = "SELECT COALESCE(SUM(total), 0) as total FROM receipts $whereSql";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
 
             $result = $stmt->fetch();
             $processedAmount = (float) $result['total'];
@@ -1216,10 +1247,10 @@ class FinanceController
                 // years table might not exist
             }
 
-            // state条件
+            // state条件（処理完了 RECEIPT_DONE、記入完了 FINALIZED、却下 REJECTED を除外）
             $whereClauses = [
-                "state IN ('CASH_GIVEN', 'TRANSFERRED', 'COLLECTED', 'RECEIPT_DONE')",
-                "state NOT IN ('FINALIZED', 'REJECTED')"
+                "state IN ('CASH_GIVEN', 'TRANSFERRED', 'COLLECTED')",
+                "state NOT IN ('RECEIPT_DONE', 'FINALIZED', 'REJECTED')"
             ];
             $params = [];
 
@@ -1238,12 +1269,11 @@ class FinanceController
 
             $whereSql = implode(" AND ", $whereClauses);
 
-            // 渡し済み、振込済み、回収済み、または処理完了（レシート提出済み）であり、
-            // まだ最終化（記入完了）されていない購入希望について、
+            // 渡し済み、振込済み、または回収済みであり、
+            // まだ処理完了（RECEIPT_DONE）または記入完了（FINALIZED）になっていない購入希望について、
             // 渡し額（予算）と処理済み額（実績）の差額（未処理額）の合計を取得
-            // レシートが削除された場合、processed_amountが減るため、その分が再び「未処理」として計上される
             $stmt = $pdo->prepare("
-                SELECT COALESCE(SUM(cash_given - COALESCE(processed_amount, 0)), 0) as total 
+                SELECT COALESCE(SUM(COALESCE(cash_given, 0) - COALESCE(processed_amount, 0)), 0) as total 
                 FROM requests 
                 WHERE $whereSql
             ");

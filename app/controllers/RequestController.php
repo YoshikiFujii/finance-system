@@ -491,10 +491,9 @@ class RequestController
                         $currentBankBalance = $fundsData ? (float) $fundsData['bank_balance'] : 0;
                         $currentCashOnHand = $fundsData ? (float) $fundsData['cash_on_hand'] : 0;
 
-                        // 銀行残高から減算し、持ち出し額は変更しない（正しい振込ロジック）
-                        // 以前のロジックでは "cash_on_hand + amount" していましたが、振込は現金を経由しないため削除しました
+                        // 銀行残高から減算し、持ち出し額に加算する（ユーザーの要望に基づく運用）
                         $newBankBalance = $currentBankBalance - $amount;
-                        $newCashOnHand = $currentCashOnHand;
+                        $newCashOnHand = $currentCashOnHand + $amount;
 
                         $updateStmt = $pdo->prepare("UPDATE funds SET bank_balance = ?, cash_on_hand = ?, updated_at = NOW() WHERE id = 1");
                         $updateResult = $updateStmt->execute([$newBankBalance, $newCashOnHand]);
@@ -505,7 +504,7 @@ class RequestController
                             $insertStmt->execute([$newBankBalance, $newCashOnHand]);
                         }
 
-                        error_log("Bank balance decreased by {$amount} for request {$id}. New balance: {$newBankBalance}. Cash on hand unchanged: {$newCashOnHand}");
+                        error_log("Bank balance decreased by {$amount} and cash on hand increased by {$amount} for request {$id}. New balance: {$newBankBalance}. New Cash on hand: {$newCashOnHand}");
 
                         // ログ記録
                         $pdo->prepare("INSERT INTO finance_logs (type, amount, action) VALUES (?, ?, ?)")
@@ -532,9 +531,9 @@ class RequestController
                         $currentBankBalance = $fundsData ? (float) $fundsData['bank_balance'] : 0;
                         $currentCashOnHand = $fundsData ? (float) $fundsData['cash_on_hand'] : 0;
 
-                        // 銀行残高に戻す
+                        // 銀行残高に戻し、持ち出し額から減算する
                         $newBankBalance = $currentBankBalance + $amount;
-                        $newCashOnHand = $currentCashOnHand; // 現金は変更なし
+                        $newCashOnHand = $currentCashOnHand - $amount;
 
                         $updateStmt = $pdo->prepare("UPDATE funds SET bank_balance = ?, cash_on_hand = ?, updated_at = NOW() WHERE id = 1");
                         $updateResult = $updateStmt->execute([$newBankBalance, $newCashOnHand]);
@@ -1120,8 +1119,17 @@ class RequestController
                 $accounting_period_id = (int) $period_result['id'];
             }
 
+            // activeな年度を取得
+            $year_id = null;
+            $year_st = db()->prepare('SELECT id FROM years WHERE is_active = 1 LIMIT 1');
+            $year_st->execute();
+            $year_result = $year_st->fetch();
+            if ($year_result) {
+                $year_id = (int) $year_result['id'];
+            }
+
             // レシートをデータベースに登録（画像なし）
-            $ins = db()->prepare('INSERT INTO receipts(request_id,receipt_no,kind,total,change_returned,file_path,taken_at,event_id,subject,purpose,payer,receipt_date,accounting_period_id,memo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+            $ins = db()->prepare('INSERT INTO receipts(request_id,receipt_no,kind,total,change_returned,file_path,taken_at,event_id,subject,purpose,payer,receipt_date,accounting_period_id,year_id,memo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 
             $result = $ins->execute([
                 $id,
@@ -1137,6 +1145,7 @@ class RequestController
                 $payer ?: null,
                 $receipt_date,
                 $accounting_period_id, // activeな計上期間のid
+                $year_id, // activeな年度のid
                 null // memo（現在は未使用）
             ]);
 
